@@ -1,4 +1,58 @@
 
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: index-html
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>LMSensors Data</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+        }
+        .title {
+          text-align: center;
+          color: navy;
+        }
+        pre {
+          background-color: #efefef;
+          padding: 10px;
+          border-radius: 5px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1 class="title">LMSensors Data</h1>
+      
+      <script>
+        // Get your file names
+        var fileNames = ["lmsensors-virt1.txt", "lmsensors-virt2.txt", "lmsensors-virt3.txt"];
+        
+        fileNames.forEach(function(fileName){
+          // Retrieve file content
+          fetch(fileName)
+            .then(response => response.text())
+            .then(data => {
+              // Create pre element to include file content
+              var preElement = document.createElement("pre");
+              preElement.innerHTML = data;
+              
+              // Create h2 element for file name
+              var h2Element = document.createElement("h2");
+              h2Element.innerText = fileName;
+              
+              // Append elements to body
+              document.body.appendChild(h2Element);
+              document.body.appendChild(preElement);
+          })
+      });
+      </script>
+    </body>
+    </html>
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -22,10 +76,16 @@ spec:
           volumeMounts:
             - mountPath: /usr/local/apache2/htdocs
               name: data-volume
+            - mountPath: /usr/local/apache2/htdocs/index.html
+              name: index-html
+              subPath: index.html
       volumes:
       - name: data-volume
         persistentVolumeClaim:
           claimName: pvc-lmsensors
+      - name: index-html
+        configMap:
+          name: index-html
 ---
 apiVersion: v1
 kind: Service

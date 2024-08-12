@@ -16,9 +16,11 @@ spec:
       - name: data-volume
         persistentVolumeClaim:
           claimName: pvc-lmsensors
+
       containers:
       - name: lmsensors
         image: ghcr.io/michaeltrip/lmsensors-container:main
+        imagePullPolicy: Always
         env:
         - name: NODE_NAME
           valueFrom:

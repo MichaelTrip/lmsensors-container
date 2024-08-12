@@ -6,7 +6,7 @@
 
 # LMSensors DaemonSet and Web Server with GitHub Actions pipeline.
 
-This repository contains the manifests for a Kubernetes DaemonSet that runs the lm_sensors command every minute on each node, a web server Deployment displaying the output of those commands, as well as a GitHub Actions pipeline for continuous integration and deployment.
+This repository contains the manifests for a Kubernetes DaemonSet that runs the lm_sensors command every minute on each node, a web server Deployment displaying the output of those commands, as well as a GitHub Actions pipeline for continuous integration and deployment. The webserver contains a custom index.html (in a configmap) that loads the text files from lmsensor. Make sure to adapt the configmap and add your filenames to it. See the webserver.yaml for more information.
 
 ## Instructions:
 
