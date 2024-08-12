@@ -43,7 +43,7 @@ After all components are deployed, the LoadBalancer will expose an IP address fr
 
 # Screenshot
 
-[screenshot](img/screenshot.png)
+![screenshot](img/screenshot.png)
 
 ## Note
 Please notice settings such as `privileged` container settings and storage sizes in the PVC and adjust as needed.
