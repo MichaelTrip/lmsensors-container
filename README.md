@@ -41,6 +41,10 @@ This repository contains the manifests for a Kubernetes DaemonSet that runs the 
 
 After all components are deployed, the LoadBalancer will expose an IP address from which you can access the lm_sensors output on the web server.
 
+# Screenshot
+
+[screenshot](img/screenshot.png)
+
 ## Note
 Please notice settings such as `privileged` container settings and storage sizes in the PVC and adjust as needed.
 
