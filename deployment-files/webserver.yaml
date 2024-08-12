@@ -1,0 +1,39 @@
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lmsensors-webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lmsensors-webserver
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: lmsensors-webserver
+    spec:
+      containers:
+        - name: webserver
+          image: httpd:2.4
+          volumeMounts:
+            - mountPath: /usr/local/apache2/htdocs
+              name: data-volume
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: pvc-lmsensors
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lmsensors-webserver-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+  selector:
+    app: lmsensors-webserver

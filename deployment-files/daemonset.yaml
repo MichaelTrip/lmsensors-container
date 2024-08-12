@@ -1,0 +1,26 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lmsensors
+spec:
+  selector:
+    matchLabels:
+      name: lmsensors
+  template:
+    metadata:
+      labels:
+        name: lmsensors
+    spec:
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: pvc-lmsensors
+      containers:
+      - name: lmsensors
+        image: lmsensors:latest
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - mountPath: /data
+            name: data-volume
