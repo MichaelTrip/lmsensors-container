@@ -19,6 +19,11 @@ spec:
       containers:
       - name: lmsensors
         image: ghcr.io/michaeltrip/lmsensors-container:main
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         securityContext:
           privileged: true
         volumeMounts:
