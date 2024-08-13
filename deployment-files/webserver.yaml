@@ -8,7 +8,7 @@ data:
     <!DOCTYPE html>
     <html>
     <head>
-      <meta http-equiv="refresh" content="60">
+      <meta http-equiv="refresh" content="10">
       <title>LMSensors Data</title>
       <style>
         body {
