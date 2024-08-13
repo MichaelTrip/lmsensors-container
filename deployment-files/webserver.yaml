@@ -12,45 +12,66 @@ data:
       <title>LMSensors Data</title>
       <style>
         body {
-          font-family: Arial, sans-serif;
+          font-family: Courier, monospace;
+          background-color: #000000;
+          color: #FFFFFF;
+          margin: 0;
+          height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
         }
-        .title {
-          text-align: center;
-          color: navy;
-        }
-        pre {
-          background-color: #efefef;
-          padding: 10px;
+        .terminal {
+          background-color: #000000;
+          border: 3px solid #4CAF50;
+          padding: 20px;
           border-radius: 5px;
+          width: 80%;
+          height: 80%;
+          overflow: auto;
+        }
+        .file-content {
+          color: #FFFFFF;
+          font-family: Courier, monospace;
+          white-space: pre-wrap;       /* css-3 */
+          white-space: -moz-pre-wrap;  /* Mozilla, supported since 1999 */
+          white-space: -pre-wrap;      /* Opera 4-6 */
+          white-space: -o-pre-wrap;    /* Opera 7 */
+          word-wrap: break-word;       /* Internet Explorer 5.5+ */
+        }
+        .file-title {
+          color: #4CAF50;
+          margin-top: 20px;
         }
       </style>
     </head>
     <body>
-      <h1 class="title">LMSensors Data</h1>
-      
-      <script>
-        // Get your file names
-        var fileNames = ["lmsensors-virt1.txt", "lmsensors-virt2.txt", "lmsensors-virt3.txt"];
-        
-        fileNames.forEach(function(fileName){
-          // Retrieve file content
-          fetch(fileName)
+      <div class="terminal">
+        <script>
+          var fileNames = ["lmsensors-virt1.txt", "lmsensors-virt2.txt", "lmsensors-virt3.txt"];
+          var shellPrompt = "root@lmsensors:~# cat ";
+
+          fileNames.forEach(function(fileName){
+            fetch(fileName)
             .then(response => response.text())
             .then(data => {
-              // Create pre element to include file content
               var preElement = document.createElement("pre");
-              preElement.innerHTML = data;
-              
-              // Create h2 element for file name
+              preElement.className = "file-content";
+              preElement.textContent = data;
+
               var h2Element = document.createElement("h2");
-              h2Element.innerText = fileName;
-              
-              // Append elements to body
-              document.body.appendChild(h2Element);
-              document.body.appendChild(preElement);
-          })
-      });
-      </script>
+              h2Element.className = "file-title";
+              h2Element.textContent = shellPrompt + fileName;
+
+              var divElement = document.createElement("div");
+              divElement.appendChild(h2Element);
+              divElement.appendChild(preElement);
+
+              document.querySelector(".terminal").appendChild(divElement);
+            })
+          });
+        </script>
+      </div>
     </body>
     </html>
 
