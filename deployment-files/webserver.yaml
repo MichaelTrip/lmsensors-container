@@ -8,7 +8,7 @@ data:
     <!DOCTYPE html>
     <html>
     <head>
-    <meta http-equiv="refresh" content="10">
+    <meta http-equiv="refresh" content="30">
     <title>LMSensors and Fastfetch Data</title>
     <style>
       body {
@@ -83,6 +83,7 @@ data:
         var shellPrompt = "root@lmsensors:~# cat ";
 
         function loadFiles(fileNames, container) {
+          container.innerHTML = ''; // Clear previous content
           fileNames.forEach(function(fileName){
             fetch(fileName)
             .then(response => response.text())
@@ -157,6 +158,21 @@ data:
               event.target.classList.add("active");
             }
           });
+
+          // Refresh active tab content every 30 seconds
+          setInterval(function() {
+            var activeTab = document.querySelector(".tab.active");
+            if (activeTab) {
+              var activeContentId = activeTab.getAttribute("data-tab");
+              var activeContent = document.getElementById(activeContentId);
+              var lmsensorsContainer = activeContent.querySelector(".lmsensors");
+              var fastfetchContainer = activeContent.querySelector(".fastfetch");
+              var node = nodes.find(n => n.name === activeContentId);
+
+              loadFiles(node.lmsensorsFiles, lmsensorsContainer);
+              loadFiles(node.fastfetchFiles, fastfetchContainer);
+            }
+          }, 30000);
         }
 
         setupTabs();
@@ -164,8 +180,6 @@ data:
     </div>
     </body>
     </html>
-
-
 
 ---
 apiVersion: apps/v1
