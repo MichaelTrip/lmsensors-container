@@ -8,7 +8,6 @@ data:
     <!DOCTYPE html>
     <html>
     <head>
-    <meta http-equiv="refresh" content="30">
     <title>LMSensors and Fastfetch Data</title>
     <style>
       body {
@@ -81,6 +80,7 @@ data:
           {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
         ];
         var shellPrompt = "root@lmsensors:~# cat ";
+        var activeTab = 'virt1'; // Default active tab
 
         function loadFiles(fileNames, container) {
           container.innerHTML = ''; // Clear previous content
@@ -136,43 +136,42 @@ data:
             contentContainer.appendChild(tabContent);
           });
 
-          // Set the default active tab to "virt1"
-          var defaultTab = document.querySelector(".tab[data-tab='virt1']");
-          var defaultContent = document.getElementById('virt1');
-          
-          if (defaultTab) {
-            defaultTab.classList.add("active");
-            defaultContent.classList.add("active");
-          }
+          // Set the active tab based on the stored state
+          setActiveTab(activeTab);
 
           tabs.addEventListener("click", function(event) {
             if (event.target.classList.contains("tab")) {
               var target = event.target.getAttribute("data-tab");
-              document.querySelectorAll(".tab-content").forEach(function(content) {
-                content.classList.remove("active");
-              });
-              document.querySelectorAll(".tab").forEach(function(tab) {
-                tab.classList.remove("active");
-              });
-              document.getElementById(target).classList.add("active");
-              event.target.classList.add("active");
+              activeTab = target; // Update the active tab state
+              setActiveTab(activeTab);
             }
           });
 
           // Refresh active tab content every 30 seconds
           setInterval(function() {
-            var activeTab = document.querySelector(".tab.active");
-            if (activeTab) {
-              var activeContentId = activeTab.getAttribute("data-tab");
-              var activeContent = document.getElementById(activeContentId);
-              var lmsensorsContainer = activeContent.querySelector(".lmsensors");
-              var fastfetchContainer = activeContent.querySelector(".fastfetch");
-              var node = nodes.find(n => n.name === activeContentId);
-
-              loadFiles(node.lmsensorsFiles, lmsensorsContainer);
-              loadFiles(node.fastfetchFiles, fastfetchContainer);
-            }
+            refreshActiveTab();
           }, 30000);
+        }
+
+        function setActiveTab(tabName) {
+          document.querySelectorAll(".tab-content").forEach(function(content) {
+            content.classList.remove("active");
+          });
+          document.querySelectorAll(".tab").forEach(function(tab) {
+            tab.classList.remove("active");
+          });
+          document.getElementById(tabName).classList.add("active");
+          document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add("active");
+        }
+
+        function refreshActiveTab() {
+          var activeContent = document.getElementById(activeTab);
+          var lmsensorsContainer = activeContent.querySelector(".lmsensors");
+          var fastfetchContainer = activeContent.querySelector(".fastfetch");
+          var node = nodes.find(n => n.name === activeTab);
+
+          loadFiles(node.lmsensorsFiles, lmsensorsContainer);
+          loadFiles(node.fastfetchFiles, fastfetchContainer);
         }
 
         setupTabs();
