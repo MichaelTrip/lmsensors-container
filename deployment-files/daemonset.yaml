@@ -12,11 +12,6 @@ spec:
       labels:
         name: lmsensors
     spec:
-      volumes:
-      - name: data-volume
-        persistentVolumeClaim:
-          claimName: pvc-lmsensors
-
       containers:
       - name: lmsensors
         image: ghcr.io/michaeltrip/lmsensors-container:main
@@ -31,3 +26,13 @@ spec:
         volumeMounts:
           - mountPath: /data
             name: data-volume
+          - mountPath: /etc/os-release
+            name: etc-osrelease-host      
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: pvc-lmsensors
+      - name: etc-osrelease-host
+        hostPath:
+          path: /etc/os-release
+          type: FileOrCreate
