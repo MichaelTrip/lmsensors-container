@@ -26,12 +26,25 @@ jobs:
         id: check_changes
         run: |
           git fetch origin
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
-          echo "Changed files: $CHANGED_FILES"
-          if echo "$CHANGED_FILES" | grep -q "index.html"; then
-            echo "index_html_changed=true" >> $GITHUB_OUTPUT
+          
+          # Handle case when github.event.before is empty or invalid
+          if [ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
+            # For new branches, check if index.html exists
+            if [ -f "index.html" ]; then
+              echo "New branch with index.html - marking as changed"
+              echo "index_html_changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "index_html_changed=false" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "index_html_changed=false" >> $GITHUB_OUTPUT
+            # Normal case - check diff between commits
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || echo "")
+            echo "Changed files: $CHANGED_FILES"
+            if echo "$CHANGED_FILES" | grep -q "index.html"; then
+              echo "index_html_changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "index_html_changed=false" >> $GITHUB_OUTPUT
+            fi
           fi
       
       - name: Update webserver.yaml ConfigMap
@@ -49,7 +62,9 @@ jobs:
           git config --global user.email "actions@github.com"
           git add deployment-files/webserver.yaml
           git commit -m "Update webserver.yaml ConfigMap with latest index.html content"
-          git push
+          
+          # Push to the same branch that triggered the workflow
+          git push origin HEAD:${GITHUB_REF#refs/heads/}
   
   build-and-push:
     runs-on: ubuntu-latest

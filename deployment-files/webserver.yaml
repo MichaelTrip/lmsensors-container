@@ -10,6 +10,7 @@ data:
     <!DOCTYPE html>
     <html>
     <head>
+    <meta http-equiv="refresh" content="10">
     <title>LMSensors and Fastfetch Data</title>
     <style>
       body {
@@ -76,16 +77,80 @@ data:
         <!-- Tab content will be dynamically generated here -->
       </div>
       <script>
-        var nodes = [
-          {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
-          {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
-          {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
-        ];
         var shellPrompt = "root@lmsensors:~# cat ";
-        var activeTab = 'virt1'; // Default active tab
-
+        var nodes = [];
+            
+        // Function to fetch and parse the list of available node data files
+        async function discoverNodes() {
+          try {
+            // Fetch the list of files from the server
+            const response = await fetch('file-list.json');
+            if (!response.ok) {
+              console.error('Failed to fetch file list');
+              document.querySelector('.terminal').innerHTML = '<div class="file-title">Failed to fetch file list. Please check server connectivity.</div>';
+              setTimeout(discoverNodes, 10000);
+              return;
+            }
+                
+            const files = await response.json();
+            const nodeMap = new Map();
+                
+            // Process each file to identify nodes
+            files.forEach(file => {
+              // Extract node name from filenames like "lmsensors-nodename.txt" or "fastfetch-nodename.txt"
+              const lmMatch = file.match(/^lmsensors-(.+)\.txt$/);
+              const ffMatch = file.match(/^fastfetch-(.+)\.txt$/);
+                  
+              if (lmMatch) {
+                const nodeName = lmMatch[1];
+                if (!nodeMap.has(nodeName)) {
+                  nodeMap.set(nodeName, {
+                    name: nodeName,
+                    lmsensorsFiles: [],
+                    fastfetchFiles: []
+                  });
+                }
+                nodeMap.get(nodeName).lmsensorsFiles.push(file);
+              } else if (ffMatch) {
+                const nodeName = ffMatch[1];
+                if (!nodeMap.has(nodeName)) {
+                  nodeMap.set(nodeName, {
+                    name: nodeName,
+                    lmsensorsFiles: [],
+                    fastfetchFiles: []
+                  });
+                }
+                nodeMap.get(nodeName).fastfetchFiles.push(file);
+              }
+            });
+                
+            // Convert Map to array and sort by node name
+            nodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+                
+            // If no nodes were found, add a message and fallback to default nodes
+            if (nodes.length === 0) {
+              document.querySelector('.terminal').innerHTML = '<div class="file-title">No sensor data found. Please wait for data collection to complete.</div>';
+              
+              // Fallback to default nodes for testing/development
+              nodes = [
+                {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
+                {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
+                {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
+              ];
+              
+              // Try again in 10 seconds for real data
+              setTimeout(discoverNodes, 10000);
+            }
+            
+            // Setup the UI with the discovered nodes
+            setupTabs();
+          } catch (error) {
+            console.error('Error discovering nodes:', error);
+            document.querySelector('.terminal').innerHTML += '<div class="file-title">Error loading sensor data. Please check the server logs.</div>';
+          }
+        }
+    
         function loadFiles(fileNames, container) {
-          container.innerHTML = ''; // Clear previous content
           fileNames.forEach(function(fileName){
             fetch(fileName)
             .then(response => response.text())
@@ -93,28 +158,24 @@ data:
               var preElement = document.createElement("pre");
               preElement.className = "file-content";
               preElement.textContent = data;
-
+    
               var h2Element = document.createElement("h2");
               h2Element.className = "file-title";
               h2Element.textContent = shellPrompt + fileName;
-
+    
               var divElement = document.createElement("div");
               divElement.appendChild(h2Element);
               divElement.appendChild(preElement);
-
+    
               container.appendChild(divElement);
             });
           });
         }
-
+    
         function setupTabs() {
           var tabs = document.querySelector(".tabs");
           var contentContainer = document.getElementById("content-container");
-          
-          // Clear existing tabs and content
-          tabs.innerHTML = '';
-          contentContainer.innerHTML = '';
-
+    
           nodes.forEach(function(node) {
             // Create tab
             var tab = document.createElement("div");
@@ -122,75 +183,55 @@ data:
             tab.textContent = node.name;
             tab.setAttribute("data-tab", node.name);
             tabs.appendChild(tab);
-
+    
             // Create tab content container
             var tabContent = document.createElement("div");
             tabContent.className = "tab-content";
             tabContent.id = node.name;
-
+    
             var lmsensorsContainer = document.createElement("div");
             lmsensorsContainer.className = "lmsensors";
             loadFiles(node.lmsensorsFiles, lmsensorsContainer);
-
+    
             var fastfetchContainer = document.createElement("div");
             fastfetchContainer.className = "fastfetch";
             loadFiles(node.fastfetchFiles, fastfetchContainer);
-
+    
             tabContent.appendChild(lmsensorsContainer);
             tabContent.appendChild(fastfetchContainer);
-
+    
             contentContainer.appendChild(tabContent);
           });
-
-          // Set the first tab as active if activeTab is not in the current nodes
-          if (!nodes.some(node => node.name === activeTab) && nodes.length > 0) {
-            activeTab = nodes[0].name;
-          }
+    
+          // Set the default active tab to "virt1"
+          var defaultTab = document.querySelector(".tab[data-tab='virt1']");
+          var defaultContent = document.getElementById('virt1');
           
-          // Set the active tab
-          setActiveTab(activeTab);
-
+          if (defaultTab) {
+            defaultTab.classList.add("active");
+            defaultContent.classList.add("active");
+          }
+    
           tabs.addEventListener("click", function(event) {
             if (event.target.classList.contains("tab")) {
               var target = event.target.getAttribute("data-tab");
-              activeTab = target; // Update the active tab state
-              setActiveTab(activeTab);
+              document.querySelectorAll(".tab-content").forEach(function(content) {
+                content.classList.remove("active");
+              });
+              document.querySelectorAll(".tab").forEach(function(tab) {
+                tab.classList.remove("active");
+              });
+              document.getElementById(target).classList.add("active");
+              event.target.classList.add("active");
             }
           });
-
-          // Refresh active tab content every 30 seconds
-          setInterval(function() {
-            refreshActiveTab();
-          }, 30000);
-          
-          // Rediscover nodes every 5 minutes to detect new nodes
-          setInterval(function() {
-            discoverNodes();
-          }, 300000);
         }
-
-        function setActiveTab(tabName) {
-          document.querySelectorAll(".tab-content").forEach(function(content) {
-            content.classList.remove("active");
-          });
-          document.querySelectorAll(".tab").forEach(function(tab) {
-            tab.classList.remove("active");
-          });
-          document.getElementById(tabName).classList.add("active");
-          document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add("active");
-        }
-
-        function refreshActiveTab() {
-          var activeContent = document.getElementById(activeTab);
-          var lmsensorsContainer = activeContent.querySelector(".lmsensors");
-          var fastfetchContainer = activeContent.querySelector(".fastfetch");
-          var node = nodes.find(n => n.name === activeTab);
-
-          loadFiles(node.lmsensorsFiles, lmsensorsContainer);
-          loadFiles(node.fastfetchFiles, fastfetchContainer);
-        }
-
-        setupTabs();
+    
+        // Start by discovering available nodes
+        discoverNodes();
+        
+        // Refresh node discovery every 30 seconds
+        setInterval(discoverNodes, 30000);
       </script>
     </div>
     </body>
