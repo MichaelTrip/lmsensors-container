@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensordash-webserver
+  labels:
+    app: sensordash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sensordash
+  template:
+    metadata:
+      labels:
+        app: sensordash
+    spec:
+      containers:
+      - name: webserver
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html-content
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+        - name: sensor-data
+          mountPath: /usr/share/nginx/html/data
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "256Mi"
+          requests:
+            cpu: "0.1"
+            memory: "128Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: html-content
+        configMap:
+          name: sensordash-config
+      - name: sensor-data
+        persistentVolumeClaim:
+          claimName: sensor-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensordash-service
+  labels:
+    app: sensordash
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: sensordash
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sensordash-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /sensors
+        pathType: Prefix
+        backend:
+          service:
+            name: sensordash-service
+            port:
+              number: 80
