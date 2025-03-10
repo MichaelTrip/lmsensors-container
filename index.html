@@ -395,11 +395,11 @@
         if (nodes.length === 0) {
           document.getElementById('content-container').innerHTML = '<div class="file-title">No sensor data found. Please wait for data collection to complete.<span class="cursor"></span></div>';
 
-          // Fallback to default nodes for testing/development
+          // Fallback to placeholder nodes without trying to load files
           nodes = [
-            {name: 'virt1', status: 'online', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
-            {name: 'virt2', status: 'warning', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
-            {name: 'virt3', status: 'offline', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
+            {name: 'node1', status: 'online', lmsensorsFiles: [], fastfetchFiles: []},
+            {name: 'node2', status: 'warning', lmsensorsFiles: [], fastfetchFiles: []},
+            {name: 'node3', status: 'offline', lmsensorsFiles: [], fastfetchFiles: []}
           ];
 
           // Try again in 10 seconds for real data
@@ -437,6 +437,15 @@
     }
 
     function loadFiles(fileNames, container) {
+      // If no files to load, show a placeholder message
+      if (!fileNames || fileNames.length === 0) {
+        var placeholderElement = document.createElement("div");
+        placeholderElement.className = "file-content";
+        placeholderElement.innerHTML = "<i>No data available for this node yet.</i>";
+        container.appendChild(placeholderElement);
+        return;
+      }
+          
       fileNames.forEach(function(fileName){
         fetch('data/' + fileName)
         .then(response => {
