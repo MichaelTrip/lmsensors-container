@@ -78,6 +78,8 @@
         const response = await fetch('file-list.json');
         if (!response.ok) {
           console.error('Failed to fetch file list');
+          document.querySelector('.terminal').innerHTML = '<div class="file-title">Failed to fetch file list. Please check server connectivity.</div>';
+          setTimeout(discoverNodes, 10000);
           return;
         }
             
@@ -116,14 +118,21 @@
         // Convert Map to array and sort by node name
         nodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
             
-        // If no nodes were found, add a message
+        // If no nodes were found, add a message and fallback to default nodes
         if (nodes.length === 0) {
-          document.querySelector('.terminal').innerHTML += '<div class="file-title">No sensor data found. Please wait for data collection to complete.</div>';
-          // Try again in 10 seconds
+          document.querySelector('.terminal').innerHTML = '<div class="file-title">No sensor data found. Please wait for data collection to complete.</div>';
+          
+          // Fallback to default nodes for testing/development
+          nodes = [
+            {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
+            {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
+            {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
+          ];
+          
+          // Try again in 10 seconds for real data
           setTimeout(discoverNodes, 10000);
-          return;
         }
-            
+        
         // Setup the UI with the discovered nodes
         setupTabs();
       } catch (error) {
