@@ -68,12 +68,70 @@
     <!-- Tab content will be dynamically generated here -->
   </div>
   <script>
-    var nodes = [
-      {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
-      {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
-      {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
-    ];
     var shellPrompt = "root@lmsensors:~# cat ";
+    var nodes = [];
+        
+    // Function to fetch and parse the list of available node data files
+    async function discoverNodes() {
+      try {
+        // Fetch the list of files from the server
+        const response = await fetch('file-list.json');
+        if (!response.ok) {
+          console.error('Failed to fetch file list');
+          return;
+        }
+            
+        const files = await response.json();
+        const nodeMap = new Map();
+            
+        // Process each file to identify nodes
+        files.forEach(file => {
+          // Extract node name from filenames like "lmsensors-nodename.txt" or "fastfetch-nodename.txt"
+          const lmMatch = file.match(/^lmsensors-(.+)\.txt$/);
+          const ffMatch = file.match(/^fastfetch-(.+)\.txt$/);
+              
+          if (lmMatch) {
+            const nodeName = lmMatch[1];
+            if (!nodeMap.has(nodeName)) {
+              nodeMap.set(nodeName, {
+                name: nodeName,
+                lmsensorsFiles: [],
+                fastfetchFiles: []
+              });
+            }
+            nodeMap.get(nodeName).lmsensorsFiles.push(file);
+          } else if (ffMatch) {
+            const nodeName = ffMatch[1];
+            if (!nodeMap.has(nodeName)) {
+              nodeMap.set(nodeName, {
+                name: nodeName,
+                lmsensorsFiles: [],
+                fastfetchFiles: []
+              });
+            }
+            nodeMap.get(nodeName).fastfetchFiles.push(file);
+          }
+        });
+            
+        // Convert Map to array and sort by node name
+        nodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+            
+        // If no nodes were found, add a message
+        if (nodes.length === 0) {
+          document.querySelector('.terminal').innerHTML += '<div class="file-title">No sensor data found. Please wait for data collection to complete.</div>';
+          // Try again in 10 seconds
+          setTimeout(discoverNodes, 10000);
+          return;
+        }
+            
+        // Setup the UI with the discovered nodes
+        // Start by discovering available nodes
+        discoverNodes();
+      } catch (error) {
+        console.error('Error discovering nodes:', error);
+        document.querySelector('.terminal').innerHTML += '<div class="file-title">Error loading sensor data. Please check the server logs.</div>';
+      }
+    }
 
     function loadFiles(fileNames, container) {
       fileNames.forEach(function(fileName){

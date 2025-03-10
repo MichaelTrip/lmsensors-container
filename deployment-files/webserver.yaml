@@ -4,6 +4,8 @@ kind: ConfigMap
 metadata:
   name: index-html
 data:
+  file-list.json: |
+    []
   index.html: |
     <!DOCTYPE html>
     <html>
@@ -108,6 +110,10 @@ data:
         function setupTabs() {
           var tabs = document.querySelector(".tabs");
           var contentContainer = document.getElementById("content-container");
+          
+          // Clear existing tabs and content
+          tabs.innerHTML = '';
+          contentContainer.innerHTML = '';
 
           nodes.forEach(function(node) {
             // Create tab
@@ -136,7 +142,12 @@ data:
             contentContainer.appendChild(tabContent);
           });
 
-          // Set the active tab based on the stored state
+          // Set the first tab as active if activeTab is not in the current nodes
+          if (!nodes.some(node => node.name === activeTab) && nodes.length > 0) {
+            activeTab = nodes[0].name;
+          }
+          
+          // Set the active tab
           setActiveTab(activeTab);
 
           tabs.addEventListener("click", function(event) {
@@ -151,6 +162,11 @@ data:
           setInterval(function() {
             refreshActiveTab();
           }, 30000);
+          
+          // Rediscover nodes every 5 minutes to detect new nodes
+          setInterval(function() {
+            discoverNodes();
+          }, 300000);
         }
 
         function setActiveTab(tabName) {
