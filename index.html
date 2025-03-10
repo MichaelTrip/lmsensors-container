@@ -194,30 +194,43 @@
         contentContainer.appendChild(tabContent);
       });
 
-      // Set the default active tab to "virt1"
-      var defaultTab = document.querySelector(".tab[data-tab='virt1']");
-      var defaultContent = document.getElementById('virt1');
+      // Get saved tab from localStorage or default to "virt1"
+      const savedTab = localStorage.getItem('activeTab') || 'virt1';
       
-      if (defaultTab) {
-        defaultTab.classList.add("active");
-        defaultContent.classList.add("active");
-      }
+      // Try to set the saved tab as active, or fall back to first tab
+      const firstNode = nodes.length > 0 ? nodes[0].name : 'virt1';
+      const tabToActivate = document.querySelector(`.tab[data-tab='${savedTab}']`) ? savedTab : firstNode;
+      
+      setActiveTab(tabToActivate);
 
       tabs.addEventListener("click", function(event) {
         if (event.target.classList.contains("tab")) {
-          var target = event.target.getAttribute("data-tab");
-          document.querySelectorAll(".tab-content").forEach(function(content) {
-            content.classList.remove("active");
-          });
-          document.querySelectorAll(".tab").forEach(function(tab) {
-            tab.classList.remove("active");
-          });
-          document.getElementById(target).classList.add("active");
-          event.target.classList.add("active");
+          const target = event.target.getAttribute("data-tab");
+          setActiveTab(target);
         }
       });
     }
 
+    // Function to set active tab and save to localStorage
+    function setActiveTab(tabName) {
+      document.querySelectorAll(".tab-content").forEach(function(content) {
+        content.classList.remove("active");
+      });
+      document.querySelectorAll(".tab").forEach(function(tab) {
+        tab.classList.remove("active");
+      });
+      
+      const targetTab = document.querySelector(`.tab[data-tab='${tabName}']`);
+      const targetContent = document.getElementById(tabName);
+      
+      if (targetTab && targetContent) {
+        targetTab.classList.add("active");
+        targetContent.classList.add("active");
+        // Save active tab to localStorage
+        localStorage.setItem('activeTab', tabName);
+      }
+    }
+    
     // Start by discovering available nodes
     discoverNodes();
     
