@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="refresh" content="10">
+<!-- Using JavaScript for refresh to maintain tab state -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LMSensors and Fastfetch Data</title>
 <style>
   body {
@@ -236,6 +237,35 @@
     
     // Refresh node discovery every 30 seconds
     setInterval(discoverNodes, 30000);
+    
+    // Page refresh that maintains the active tab
+    function refreshPage() {
+      // Store the current scroll position
+      const scrollPos = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      localStorage.setItem('scrollPosition', JSON.stringify(scrollPos));
+      
+      // Reload the page
+      window.location.reload();
+    }
+    
+    // Set up page refresh timer (10 seconds)
+    setInterval(refreshPage, 10000);
+    
+    // Restore scroll position after page load
+    window.addEventListener('load', function() {
+      const scrollPosStr = localStorage.getItem('scrollPosition');
+      if (scrollPosStr) {
+        try {
+          const scrollPos = JSON.parse(scrollPosStr);
+          window.scrollTo(scrollPos.x, scrollPos.y);
+        } catch (e) {
+          console.error('Error restoring scroll position:', e);
+        }
+      }
+    });
   </script>
 </div>
 </body>
