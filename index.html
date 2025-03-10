@@ -345,7 +345,7 @@
         document.getElementById('status-text').innerHTML = '<span class="loading-indicator"></span>Fetching data...';
         
         // Fetch the list of files from the server
-        const response = await fetch('file-list.json');
+        const response = await fetch('/data/file-list.json');
         if (!response.ok) {
           console.error('Failed to fetch file list');
           document.getElementById('content-container').innerHTML = '<div class="file-title">Failed to fetch file list. Please check server connectivity.</div>';
@@ -438,7 +438,7 @@
 
     function loadFiles(fileNames, container) {
       fileNames.forEach(function(fileName){
-        fetch(fileName)
+        fetch('/data/' + fileName)
         .then(response => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ${fileName}`);
