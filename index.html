@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="refresh" content="10">
+<!-- Using JavaScript for refresh to maintain tab states -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LMSensors and Fastfetch Data</title>
 <style>
   body {
@@ -68,12 +69,78 @@
     <!-- Tab content will be dynamically generated here -->
   </div>
   <script>
-    var nodes = [
-      {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
-      {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
-      {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
-    ];
     var shellPrompt = "root@lmsensors:~# cat ";
+    var nodes = [];
+
+    // Function to fetch and parse the list of available node data files
+    async function discoverNodes() {
+      try {
+        // Fetch the list of files from the server
+        const response = await fetch('file-list.json');
+        if (!response.ok) {
+          console.error('Failed to fetch file list');
+          document.querySelector('.terminal').innerHTML = '<div class="file-title">Failed to fetch file list. Please check server connectivity.</div>';
+          setTimeout(discoverNodes, 10000);
+          return;
+        }
+
+        const files = await response.json();
+        const nodeMap = new Map();
+
+        // Process each file to identify nodes
+        files.forEach(file => {
+          // Extract node name from filenames like "lmsensors-nodename.txt" or "fastfetch-nodename.txt"
+          const lmMatch = file.match(/^lmsensors-(.+)\.txt$/);
+          const ffMatch = file.match(/^fastfetch-(.+)\.txt$/);
+
+          if (lmMatch) {
+            const nodeName = lmMatch[1];
+            if (!nodeMap.has(nodeName)) {
+              nodeMap.set(nodeName, {
+                name: nodeName,
+                lmsensorsFiles: [],
+                fastfetchFiles: []
+              });
+            }
+            nodeMap.get(nodeName).lmsensorsFiles.push(file);
+          } else if (ffMatch) {
+            const nodeName = ffMatch[1];
+            if (!nodeMap.has(nodeName)) {
+              nodeMap.set(nodeName, {
+                name: nodeName,
+                lmsensorsFiles: [],
+                fastfetchFiles: []
+              });
+            }
+            nodeMap.get(nodeName).fastfetchFiles.push(file);
+          }
+        });
+
+        // Convert Map to array and sort by node name
+        nodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+        // If no nodes were found, add a message and fallback to default nodes
+        if (nodes.length === 0) {
+          document.querySelector('.terminal').innerHTML = '<div class="file-title">No sensor data found. Please wait for data collection to complete.</div>';
+
+          // Fallback to default nodes for testing/development
+          nodes = [
+            {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
+            {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
+            {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
+          ];
+
+          // Try again in 10 seconds for real data
+          setTimeout(discoverNodes, 10000);
+        }
+
+        // Setup the UI with the discovered nodes
+        setupTabs();
+      } catch (error) {
+        console.error('Error discovering nodes:', error);
+        document.querySelector('.terminal').innerHTML += '<div class="file-title">Error loading sensor data. Please check the server logs.</div>';
+      }
+    }
 
     function loadFiles(fileNames, container) {
       fileNames.forEach(function(fileName){
@@ -128,31 +195,77 @@
         contentContainer.appendChild(tabContent);
       });
 
-      // Set the default active tab to "virt1"
-      var defaultTab = document.querySelector(".tab[data-tab='virt1']");
-      var defaultContent = document.getElementById('virt1');
-      
-      if (defaultTab) {
-        defaultTab.classList.add("active");
-        defaultContent.classList.add("active");
-      }
+      // Get saved tab from localStorage or default to "virt1"
+      const savedTab = localStorage.getItem('activeTab') || 'virt1';
+
+      // Try to set the saved tab as active, or fall back to first tab
+      const firstNode = nodes.length > 0 ? nodes[0].name : 'virt1';
+      const tabToActivate = document.querySelector(`.tab[data-tab='${savedTab}']`) ? savedTab : firstNode;
+
+      setActiveTab(tabToActivate);
 
       tabs.addEventListener("click", function(event) {
         if (event.target.classList.contains("tab")) {
-          var target = event.target.getAttribute("data-tab");
-          document.querySelectorAll(".tab-content").forEach(function(content) {
-            content.classList.remove("active");
-          });
-          document.querySelectorAll(".tab").forEach(function(tab) {
-            tab.classList.remove("active");
-          });
-          document.getElementById(target).classList.add("active");
-          event.target.classList.add("active");
+          const target = event.target.getAttribute("data-tab");
+          setActiveTab(target);
         }
       });
     }
 
-    setupTabs();
+    // Function to set active tab and save to localStorage
+    function setActiveTab(tabName) {
+      document.querySelectorAll(".tab-content").forEach(function(content) {
+        content.classList.remove("active");
+      });
+      document.querySelectorAll(".tab").forEach(function(tab) {
+        tab.classList.remove("active");
+      });
+
+      const targetTab = document.querySelector(`.tab[data-tab='${tabName}']`);
+      const targetContent = document.getElementById(tabName);
+
+      if (targetTab && targetContent) {
+        targetTab.classList.add("active");
+        targetContent.classList.add("active");
+        // Save active tab to localStorage
+        localStorage.setItem('activeTab', tabName);
+      }
+    }
+
+    // Start by discovering available nodes
+    discoverNodes();
+
+    // Refresh node discovery every 30 seconds
+    setInterval(discoverNodes, 30000);
+
+    // Page refresh that maintains the active tab
+    function refreshPage() {
+      // Store the current scroll position
+      const scrollPos = {
+        x: window.scrollX,
+        y: window.scrollY
+      };
+      localStorage.setItem('scrollPosition', JSON.stringify(scrollPos));
+
+      // Reload the page
+      window.location.reload();
+    }
+
+    // Set up page refresh timer (10 seconds)
+    setInterval(refreshPage, 10000);
+
+    // Restore scroll position after page load
+    window.addEventListener('load', function() {
+      const scrollPosStr = localStorage.getItem('scrollPosition');
+      if (scrollPosStr) {
+        try {
+          const scrollPos = JSON.parse(scrollPosStr);
+          window.scrollTo(scrollPos.x, scrollPos.y);
+        } catch (e) {
+          console.error('Error restoring scroll position:', e);
+        }
+      }
+    });
   </script>
 </div>
 </body>

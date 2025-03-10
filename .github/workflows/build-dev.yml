@@ -1,14 +1,15 @@
-name: Main Build
+name: Build and push dev image
 
 on:
-  schedule:
-    - cron: '0 16 * * *'
   push:
-    branches: 
-      - "main"
-      - "feature/**"
+    branches:
+      - main
+      - dev
+      - 'feature/**'
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+      - dev
 
 env:
   REGISTRY: ghcr.io
@@ -81,7 +82,7 @@ jobs:
           
           # Push to the same branch that triggered the workflow
           git push origin HEAD:${GITHUB_REF#refs/heads/}
-  
+          
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
@@ -109,15 +110,14 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=main
+            type=raw,value=dev
+            type=sha,format=short
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Containerfile
-          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

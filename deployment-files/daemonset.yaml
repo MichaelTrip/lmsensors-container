@@ -27,7 +27,11 @@ spec:
           - mountPath: /data
             name: data-volume
           - mountPath: /etc/os-release
-            name: etc-osrelease-host      
+            name: etc-osrelease-host
+        command: ["/bin/sh"]
+        args:
+          - "-c"
+          - "hostname ${NODE_NAME} && /bin/sh /sensors.sh"
       volumes:
       - name: data-volume
         persistentVolumeClaim:
