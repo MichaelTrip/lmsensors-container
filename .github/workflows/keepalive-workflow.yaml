@@ -1,4 +1,4 @@
-name: Github Action with a cronjob trigger
+name: Keepalive Workflow
 on:
   schedule:
     - cron: "0 0 * * *"
@@ -8,9 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # - step1
-      # - step 2
-      # - Step N
+      # This job can be empty, it's just to trigger the keepalive job
+  
   keepalive-job:
     name: Keepalive Workflow
     if: ${{ always() }}

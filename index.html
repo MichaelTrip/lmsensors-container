@@ -125,8 +125,7 @@
         }
             
         // Setup the UI with the discovered nodes
-        // Start by discovering available nodes
-        discoverNodes();
+        setupTabs();
       } catch (error) {
         console.error('Error discovering nodes:', error);
         document.querySelector('.terminal').innerHTML += '<div class="file-title">Error loading sensor data. Please check the server logs.</div>';
@@ -210,7 +209,11 @@
       });
     }
 
-    setupTabs();
+    // Start by discovering available nodes
+    discoverNodes();
+    
+    // Refresh node discovery every 30 seconds
+    setInterval(discoverNodes, 30000);
   </script>
 </div>
 </body>
