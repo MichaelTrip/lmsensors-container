@@ -10,6 +10,28 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  update-configmap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Update webserver.yaml ConfigMap
+        run: |
+          echo "Updating ConfigMap in deployment-files/webserver.yaml with latest index.html content"
+          # Extract the content between the first and last line of index.html
+          INDEX_CONTENT=$(sed '1d;$d' index.html | sed 's/^/    /')
+          
+          # Update the ConfigMap in webserver.yaml
+          sed -i '/index.html: |/,/---/c\  index.html: |\n'"$INDEX_CONTENT"'\n---' deployment-files/webserver.yaml
+          
+          # Commit and push the changes
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add deployment-files/webserver.yaml
+          git commit -m "Update webserver.yaml ConfigMap with latest index.html content for release ${{ github.ref_name }}"
+          git push
+          
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
