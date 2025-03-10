@@ -268,12 +268,12 @@ data:
         .main-container {
           flex-direction: column;
         }
-        
+
         .tab {
           padding: 10px 15px;
           font-size: 0.8rem;
         }
-        
+
         .header-title {
           font-size: 1rem;
         }
@@ -287,15 +287,15 @@ data:
         border-radius: 50%;
         margin-right: 8px;
       }
-      
+
       .status-online {
         background-color: #238636;
       }
-      
+
       .status-warning {
         background-color: #f0883e;
       }
-      
+
       .status-offline {
         background-color: #f85149;
       }
@@ -312,24 +312,24 @@ data:
           <button id="fullscreen-btn" title="Toggle Fullscreen"><i class="fas fa-expand"></i></button>
         </div>
       </div>
-      
+
       <div class="main-container">
         <div class="terminal">
           <div class="terminal-header">
             <i class="fas fa-terminal" style="color: var(--primary-color)"></i>
             <span class="terminal-title">sensors@cluster:~</span>
           </div>
-          
+
           <div class="tabs">
             <!-- Tabs will be dynamically generated here -->
           </div>
-          
+
           <div class="terminal-window">
             <div id="content-container">
               <!-- Tab content will be dynamically generated here -->
             </div>
           </div>
-          
+
           <div class="status-bar">
             <div class="status-item">
               <div class="status-indicator"></div>
@@ -351,7 +351,7 @@ data:
           try {
             // Update status indicator
             document.getElementById('status-text').innerHTML = '<span class="loading-indicator"></span>Fetching data...';
-            
+
             // Fetch the list of files from the server
             const response = await fetch('file-list.json');
             if (!response.ok) {
@@ -418,7 +418,7 @@ data:
             document.getElementById('status-text').innerHTML = 'Connected';
             lastUpdateTime = new Date();
             updateTimestamp();
-            
+
             // Setup the UI with the discovered nodes
             setupTabs();
           } catch (error) {
@@ -431,7 +431,7 @@ data:
         function updateTimestamp() {
           const now = new Date();
           const diff = Math.floor((now - lastUpdateTime) / 1000);
-          
+
           let timeText;
           if (diff < 60) {
             timeText = `${diff} seconds ago`;
@@ -440,7 +440,7 @@ data:
           } else {
             timeText = `${Math.floor(diff / 3600)} hours ago`;
           }
-          
+
           document.getElementById('update-time').textContent = timeText;
         }
 
@@ -494,7 +494,7 @@ data:
         function setupTabs() {
           var tabs = document.querySelector(".tabs");
           var contentContainer = document.getElementById("content-container");
-          
+
           // Clear existing tabs and content
           tabs.innerHTML = '';
           contentContainer.innerHTML = '';
@@ -514,19 +514,19 @@ data:
 
             var lmsensorsContainer = document.createElement("div");
             lmsensorsContainer.className = "lmsensors";
-            
+
             // Add section title for sensors
             var sensorTitle = document.createElement("h3");
             sensorTitle.innerHTML = '<i class="fas fa-thermometer-half"></i> Sensor Data';
             sensorTitle.style.color = 'var(--primary-color)';
             sensorTitle.style.marginBottom = '15px';
             lmsensorsContainer.appendChild(sensorTitle);
-            
+
             loadFiles(node.lmsensorsFiles, lmsensorsContainer);
 
             var fastfetchContainer = document.createElement("div");
             fastfetchContainer.className = "fastfetch";
-            
+
             // Add section title for system info
             var sysInfoTitle = document.createElement("h3");
             sysInfoTitle.innerHTML = '<i class="fas fa-info-circle"></i> System Information';
@@ -534,7 +534,7 @@ data:
             sysInfoTitle.style.marginTop = '30px';
             sysInfoTitle.style.marginBottom = '15px';
             fastfetchContainer.appendChild(sysInfoTitle);
-            
+
             loadFiles(node.fastfetchFiles, fastfetchContainer);
 
             tabContent.appendChild(lmsensorsContainer);
@@ -599,7 +599,7 @@ data:
 
         // Refresh node discovery every 30 seconds
         setInterval(discoverNodes, 30000);
-        
+
         // Update the "last updated" timestamp every minute
         setInterval(updateTimestamp, 60000);
 
@@ -607,7 +607,7 @@ data:
         document.getElementById('refresh-btn').addEventListener('click', function() {
           discoverNodes();
         });
-        
+
         // Fullscreen button
         document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
 
