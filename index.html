@@ -1,85 +1,355 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <!-- Using JavaScript for refresh to maintain tab states -->
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LMSensors and Fastfetch Data</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
+  :root {
+    --bg-color: #0d1117;
+    --terminal-bg: #161b22;
+    --primary-color: #58a6ff;
+    --secondary-color: #30363d;
+    --text-color: #c9d1d9;
+    --accent-color: #238636;
+    --header-color: #010409;
+    --border-radius: 8px;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
   body {
-    font-family: Courier, monospace;
-    background-color: #000000;
-    color: #FFFFFF;
+    font-family: var(--font-mono);
+    background-color: var(--bg-color);
+    color: var(--text-color);
     margin: 0;
     height: 100vh;
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column;
   }
+
+  .header {
+    background-color: var(--header-color);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--secondary-color);
+  }
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+  }
+
+  .header-controls {
+    display: flex;
+    gap: 15px;
+  }
+
+  .header-controls button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .header-controls button:hover {
+    background-color: var(--secondary-color);
+  }
+
+  .main-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
   .terminal {
-    background-color: #000000;
-    border: 3px solid #4CAF50;
+    background-color: var(--terminal-bg);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .terminal-header {
+    background-color: var(--secondary-color);
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #30363d;
+  }
+
+  .terminal-title {
+    color: var(--text-color);
+    font-size: 0.9rem;
+    margin-left: 10px;
+  }
+
+  .terminal-window {
+    flex: 1;
     padding: 20px;
-    border-radius: 5px;
-    width: 80%;
-    height: 80%;
+    overflow: auto;
+    position: relative;
+  }
+
+  .terminal-content {
+    height: 100%;
     overflow: auto;
   }
+
   .file-content {
-    color: #FFFFFF;
-    font-family: Courier, monospace;
+    color: var(--text-color);
+    font-family: var(--font-mono);
     white-space: pre-wrap;
     word-wrap: break-word;
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
+
   .file-title {
-    color: #4CAF50;
+    color: var(--accent-color);
     margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
+
+  .file-title::before {
+    content: ">";
+    color: var(--primary-color);
+  }
+
   .tabs {
     display: flex;
-    cursor: pointer;
-    margin-bottom: 20px;
+    background-color: var(--secondary-color);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    border-bottom: 1px solid #30363d;
   }
+
   .tab {
-    padding: 10px 20px;
-    margin-right: 5px;
-    border: 1px solid #4CAF50;
-    border-radius: 5px 5px 0 0;
-    background-color: #000000;
-    color: #4CAF50;
-    font-weight: bold;
+    padding: 12px 20px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-weight: 500;
+    font-size: 0.9rem;
+    border-right: 1px solid #30363d;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
   }
+
+  .tab:hover {
+    background-color: rgba(56, 139, 253, 0.1);
+  }
+
   .tab-content {
     display: none;
+    padding: 15px;
   }
+
   .tab-content.active {
     display: block;
+    animation: fadeIn 0.3s ease-in-out;
   }
+
   .tab.active {
-    background-color: #4CAF50;
-    color: #000000;
+    background-color: var(--terminal-bg);
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .status-bar {
+    background-color: var(--secondary-color);
+    padding: 8px 15px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    border-top: 1px solid #30363d;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-color);
+  }
+
+  .loading-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 10px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background-color: var(--primary-color);
+    margin-left: 5px;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--terminal-bg);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .main-container {
+      flex-direction: column;
+    }
+    
+    .tab {
+      padding: 10px 15px;
+      font-size: 0.8rem;
+    }
+    
+    .header-title {
+      font-size: 1rem;
+    }
+  }
+
+  /* Node status indicators */
+  .node-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .status-online {
+    background-color: #238636;
+  }
+  
+  .status-warning {
+    background-color: #f0883e;
+  }
+  
+  .status-offline {
+    background-color: #f85149;
   }
 </style>
 </head>
 <body>
-<div class="terminal">
-  <div class="tabs">
-    <!-- Tabs will be dynamically generated here -->
+  <div class="header">
+    <div class="header-title">
+      <i class="fas fa-microchip"></i>
+      <span>SensorDash Terminal</span>
+    </div>
+    <div class="header-controls">
+      <button id="refresh-btn" title="Force Refresh"><i class="fas fa-sync-alt"></i></button>
+      <button id="fullscreen-btn" title="Toggle Fullscreen"><i class="fas fa-expand"></i></button>
+    </div>
   </div>
-  <div id="content-container">
-    <!-- Tab content will be dynamically generated here -->
+  
+  <div class="main-container">
+    <div class="terminal">
+      <div class="terminal-header">
+        <i class="fas fa-terminal" style="color: var(--primary-color)"></i>
+        <span class="terminal-title">sensors@cluster:~</span>
+      </div>
+      
+      <div class="tabs">
+        <!-- Tabs will be dynamically generated here -->
+      </div>
+      
+      <div class="terminal-window">
+        <div id="content-container">
+          <!-- Tab content will be dynamically generated here -->
+        </div>
+      </div>
+      
+      <div class="status-bar">
+        <div class="status-item">
+          <div class="status-indicator"></div>
+          <span id="status-text">Connected</span>
+        </div>
+        <div class="status-item">
+          <span id="last-updated">Last updated: <span id="update-time">Just now</span></span>
+        </div>
+      </div>
+    </div>
   </div>
   <script>
-    var shellPrompt = "root@lmsensors:~# cat ";
+    var shellPrompt = "sensors@cluster:~$ cat ";
     var nodes = [];
+    var lastUpdateTime = new Date();
 
     // Function to fetch and parse the list of available node data files
     async function discoverNodes() {
       try {
+        // Update status indicator
+        document.getElementById('status-text').innerHTML = '<span class="loading-indicator"></span>Fetching data...';
+        
         // Fetch the list of files from the server
-        const response = await fetch('file-list.json');
+        const response = await fetch('data/file-list.json');
         if (!response.ok) {
           console.error('Failed to fetch file list');
-          document.querySelector('.terminal').innerHTML = '<div class="file-title">Failed to fetch file list. Please check server connectivity.</div>';
+          document.getElementById('content-container').innerHTML = '<div class="file-title">Failed to fetch file list. Please check server connectivity.</div>';
+          document.getElementById('status-text').innerHTML = '<span style="color: #f85149;">Disconnected</span>';
           setTimeout(discoverNodes, 10000);
           return;
         }
@@ -99,7 +369,8 @@
               nodeMap.set(nodeName, {
                 name: nodeName,
                 lmsensorsFiles: [],
-                fastfetchFiles: []
+                fastfetchFiles: [],
+                status: 'online' // Default status
               });
             }
             nodeMap.get(nodeName).lmsensorsFiles.push(file);
@@ -109,7 +380,8 @@
               nodeMap.set(nodeName, {
                 name: nodeName,
                 lmsensorsFiles: [],
-                fastfetchFiles: []
+                fastfetchFiles: [],
+                status: 'online' // Default status
               });
             }
             nodeMap.get(nodeName).fastfetchFiles.push(file);
@@ -121,31 +393,67 @@
 
         // If no nodes were found, add a message and fallback to default nodes
         if (nodes.length === 0) {
-          document.querySelector('.terminal').innerHTML = '<div class="file-title">No sensor data found. Please wait for data collection to complete.</div>';
+          document.getElementById('content-container').innerHTML = '<div class="file-title">No sensor data found. Please wait for data collection to complete.<span class="cursor"></span></div>';
 
-          // Fallback to default nodes for testing/development
+          // Fallback to placeholder nodes without trying to load files
           nodes = [
-            {name: 'virt1', lmsensorsFiles: ['lmsensors-virt1.txt'], fastfetchFiles: ['fastfetch-virt1.txt']},
-            {name: 'virt2', lmsensorsFiles: ['lmsensors-virt2.txt'], fastfetchFiles: ['fastfetch-virt2.txt']},
-            {name: 'virt3', lmsensorsFiles: ['lmsensors-virt3.txt'], fastfetchFiles: ['fastfetch-virt3.txt']}
+            {name: 'node1', status: 'online', lmsensorsFiles: [], fastfetchFiles: []},
+            {name: 'node2', status: 'warning', lmsensorsFiles: [], fastfetchFiles: []},
+            {name: 'node3', status: 'offline', lmsensorsFiles: [], fastfetchFiles: []}
           ];
 
           // Try again in 10 seconds for real data
           setTimeout(discoverNodes, 10000);
         }
 
+        // Update status
+        document.getElementById('status-text').innerHTML = 'Connected';
+        lastUpdateTime = new Date();
+        updateTimestamp();
+        
         // Setup the UI with the discovered nodes
         setupTabs();
       } catch (error) {
         console.error('Error discovering nodes:', error);
-        document.querySelector('.terminal').innerHTML += '<div class="file-title">Error loading sensor data. Please check the server logs.</div>';
+        document.getElementById('content-container').innerHTML += '<div class="file-title">Error loading sensor data. Please check the server logs.<span class="cursor"></span></div>';
+        document.getElementById('status-text').innerHTML = '<span style="color: #f85149;">Error</span>';
       }
     }
 
+    function updateTimestamp() {
+      const now = new Date();
+      const diff = Math.floor((now - lastUpdateTime) / 1000);
+      
+      let timeText;
+      if (diff < 60) {
+        timeText = `${diff} seconds ago`;
+      } else if (diff < 3600) {
+        timeText = `${Math.floor(diff / 60)} minutes ago`;
+      } else {
+        timeText = `${Math.floor(diff / 3600)} hours ago`;
+      }
+      
+      document.getElementById('update-time').textContent = timeText;
+    }
+
     function loadFiles(fileNames, container) {
+      // If no files to load, show a placeholder message
+      if (!fileNames || fileNames.length === 0) {
+        var placeholderElement = document.createElement("div");
+        placeholderElement.className = "file-content";
+        placeholderElement.innerHTML = "<i>No data available for this node yet.</i>";
+        container.appendChild(placeholderElement);
+        return;
+      }
+          
       fileNames.forEach(function(fileName){
-        fetch(fileName)
-        .then(response => response.text())
+        fetch('data/' + fileName)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${fileName}`);
+          }
+          return response.text();
+        })
         .then(data => {
           var preElement = document.createElement("pre");
           preElement.className = "file-content";
@@ -153,26 +461,50 @@
 
           var h2Element = document.createElement("h2");
           h2Element.className = "file-title";
-          h2Element.textContent = shellPrompt + fileName;
+          h2Element.innerHTML = `${shellPrompt}${fileName}`;
 
           var divElement = document.createElement("div");
           divElement.appendChild(h2Element);
           divElement.appendChild(preElement);
 
           container.appendChild(divElement);
+        })
+        .catch(error => {
+          console.error(error);
+          var errorElement = document.createElement("div");
+          errorElement.className = "file-title";
+          errorElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #f85149;"></i> Error loading ${fileName}: ${error.message}`;
+          container.appendChild(errorElement);
         });
       });
+    }
+
+    function getStatusIcon(status) {
+      switch(status) {
+        case 'online':
+          return '<span class="node-status status-online" title="Online"></span>';
+        case 'warning':
+          return '<span class="node-status status-warning" title="Warning"></span>';
+        case 'offline':
+          return '<span class="node-status status-offline" title="Offline"></span>';
+        default:
+          return '<span class="node-status status-online" title="Online"></span>';
+      }
     }
 
     function setupTabs() {
       var tabs = document.querySelector(".tabs");
       var contentContainer = document.getElementById("content-container");
+      
+      // Clear existing tabs and content
+      tabs.innerHTML = '';
+      contentContainer.innerHTML = '';
 
       nodes.forEach(function(node) {
-        // Create tab
+        // Create tab with status indicator
         var tab = document.createElement("div");
         tab.className = "tab";
-        tab.textContent = node.name;
+        tab.innerHTML = `${getStatusIcon(node.status)}<i class="fas fa-server"></i> ${node.name}`;
         tab.setAttribute("data-tab", node.name);
         tabs.appendChild(tab);
 
@@ -183,10 +515,27 @@
 
         var lmsensorsContainer = document.createElement("div");
         lmsensorsContainer.className = "lmsensors";
+        
+        // Add section title for sensors
+        var sensorTitle = document.createElement("h3");
+        sensorTitle.innerHTML = '<i class="fas fa-thermometer-half"></i> Sensor Data';
+        sensorTitle.style.color = 'var(--primary-color)';
+        sensorTitle.style.marginBottom = '15px';
+        lmsensorsContainer.appendChild(sensorTitle);
+        
         loadFiles(node.lmsensorsFiles, lmsensorsContainer);
 
         var fastfetchContainer = document.createElement("div");
         fastfetchContainer.className = "fastfetch";
+        
+        // Add section title for system info
+        var sysInfoTitle = document.createElement("h3");
+        sysInfoTitle.innerHTML = '<i class="fas fa-info-circle"></i> System Information';
+        sysInfoTitle.style.color = 'var(--primary-color)';
+        sysInfoTitle.style.marginTop = '30px';
+        sysInfoTitle.style.marginBottom = '15px';
+        fastfetchContainer.appendChild(sysInfoTitle);
+        
         loadFiles(node.fastfetchFiles, fastfetchContainer);
 
         tabContent.appendChild(lmsensorsContainer);
@@ -195,18 +544,19 @@
         contentContainer.appendChild(tabContent);
       });
 
-      // Get saved tab from localStorage or default to "virt1"
-      const savedTab = localStorage.getItem('activeTab') || 'virt1';
+      // Get saved tab from localStorage or default to first node
+      const savedTab = localStorage.getItem('activeTab');
+      const firstNode = nodes.length > 0 ? nodes[0].name : null;
+      const tabToActivate = savedTab && document.querySelector(`.tab[data-tab='${savedTab}']`) ? savedTab : firstNode;
 
-      // Try to set the saved tab as active, or fall back to first tab
-      const firstNode = nodes.length > 0 ? nodes[0].name : 'virt1';
-      const tabToActivate = document.querySelector(`.tab[data-tab='${savedTab}']`) ? savedTab : firstNode;
-
-      setActiveTab(tabToActivate);
+      if (tabToActivate) {
+        setActiveTab(tabToActivate);
+      }
 
       tabs.addEventListener("click", function(event) {
-        if (event.target.classList.contains("tab")) {
-          const target = event.target.getAttribute("data-tab");
+        const tabElement = event.target.closest('.tab');
+        if (tabElement) {
+          const target = tabElement.getAttribute("data-tab");
           setActiveTab(target);
         }
       });
@@ -232,11 +582,35 @@
       }
     }
 
+    // Toggle fullscreen
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
     // Start by discovering available nodes
     discoverNodes();
 
     // Refresh node discovery every 30 seconds
     setInterval(discoverNodes, 30000);
+    
+    // Update the "last updated" timestamp every minute
+    setInterval(updateTimestamp, 60000);
+
+    // Manual refresh button
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+      discoverNodes();
+    });
+    
+    // Fullscreen button
+    document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
 
     // Page refresh that maintains the active tab
     function refreshPage() {
@@ -251,8 +625,8 @@
       window.location.reload();
     }
 
-    // Set up page refresh timer (10 seconds)
-    setInterval(refreshPage, 10000);
+    // Set up page refresh timer (30 seconds)
+    setInterval(refreshPage, 30000);
 
     // Restore scroll position after page load
     window.addEventListener('load', function() {

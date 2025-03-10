@@ -6,7 +6,7 @@
 
 # LMSensors DaemonSet and Web Server with GitHub Actions pipeline.
 
-This repository contains the manifests for a Kubernetes DaemonSet that runs the lm_sensors command every minute on each node, a web server Deployment displaying the output of those commands, as well as a GitHub Actions pipeline for continuous integration and deployment. The webserver contains a custom index.html (in a configmap) that loads the text files from lmsensor. Make sure to adapt the configmap and add your node names and filenames to it. See the webserver.yaml for more information.
+This repository contains the manifests for a Kubernetes DaemonSet that runs the lm_sensors command every minute on each node, a web server Deployment displaying the output of those commands, as well as a GitHub Actions pipeline for continuous integration and deployment. The webserver contains a custom index.html (in a configmap) that loads the text files from lmsensor.
 
 ## Instructions:
 
@@ -22,7 +22,7 @@ This repository contains the manifests for a Kubernetes DaemonSet that runs the 
 4. **Deploy PersistentVolumeClaim (PVC)**
    Apply the PVC configuration for data to be persisted on the node:
 
-   `kubectl apply -f deploymentfiles/pvc.yaml` 
+   `kubectl apply -f deploymentfiles/pvc.yaml`
 
    Make sure this pvc is `ReadWriteMany`
 
@@ -36,7 +36,7 @@ This repository contains the manifests for a Kubernetes DaemonSet that runs the 
    Deploy the web server Deployment that reads from the shared volume:
    `kubectl apply -f deploymentfiles/webserver.yaml`
 
-   This will deploy the webserver and a service with type `LoadBalancer` 
+   This will deploy the webserver and a service with type `LoadBalancer`
 
 
 After all components are deployed, the LoadBalancer will expose an IP address from which you can access the lm_sensors output on the web server.
