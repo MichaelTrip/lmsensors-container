@@ -1,11 +1,13 @@
 FROM ubuntu:24.04
 
 RUN apt update \
-    && apt install -y lm-sensors aha jq wget && apt clean
+    && apt install -y lm-sensors aha jq wget curl \
+    && apt clean
 
-RUN /bin/sh -c "export FASTFETCH_VERSION=$(curl https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | jq .name | tr -d '"'); \
-                wget https://github.com/fastfetch-cli/fastfetch/releases/download/$FASTFETCH_VERSION/fastfetch-linux-amd64.deb -O /tmp/fastfetch.deb; \
-                dpkg -i /tmp/fastfetch.deb"
+# Use the tr command to strip the quotes and handle the variable correctly
+RUN FASTFETCH_VERSION=$(curl -s https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | jq .name | tr -d '"') \
+    && wget https://github.com/fastfetch-cli/fastfetch/releases/download/$FASTFETCH_VERSION/fastfetch-linux-amd64.deb -O /tmp/fastfetch.deb \
+    && dpkg -i /tmp/fastfetch.deb
 
 COPY sensors.sh /sensors.sh
 
