@@ -12,6 +12,7 @@ spec:
       labels:
         name: lmsensors
     spec:
+      hostname: "$(NODE_NAME)"
       containers:
       - name: lmsensors
         image: ghcr.io/michaeltrip/lmsensors-container:main
