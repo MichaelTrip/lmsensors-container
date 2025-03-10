@@ -51,11 +51,27 @@ jobs:
         if: steps.check_changes.outputs.index_html_changed == 'true'
         run: |
           echo "Updating ConfigMap in deployment-files/webserver.yaml with new index.html content"
-          # Extract the content between the first and last line of index.html
-          INDEX_CONTENT=$(sed '1d;$d' index.html | sed 's/^/    /')
+          # Create a temporary file with the new content
+          echo "apiVersion: v1" > temp_cm.yaml
+          echo "kind: ConfigMap" >> temp_cm.yaml
+          echo "metadata:" >> temp_cm.yaml
+          echo "  name: index-html" >> temp_cm.yaml
+          echo "data:" >> temp_cm.yaml
+          echo "  file-list.json: |" >> temp_cm.yaml
+          echo "    []" >> temp_cm.yaml
+          echo "  index.html: |" >> temp_cm.yaml
           
-          # Update the ConfigMap in webserver.yaml
-          sed -i '/index.html: |/,/---/c\  index.html: |\n'"$INDEX_CONTENT"'\n---' deployment-files/webserver.yaml
+          # Add the index.html content with proper indentation
+          cat index.html | sed 's/^/    /' >> temp_cm.yaml
+          
+          # Add the separator for the next section
+          echo "---" >> temp_cm.yaml
+          
+          # Append the rest of the webserver.yaml (deployment and service)
+          sed -n '/^---/,$p' deployment-files/webserver.yaml | tail -n +2 >> temp_cm.yaml
+          
+          # Replace the original file
+          mv temp_cm.yaml deployment-files/webserver.yaml
           
           # Commit and push the changes
           git config --global user.name "GitHub Actions"
