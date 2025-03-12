@@ -14,9 +14,11 @@ spec:
     spec:
       containers:
       - name: lmsensors
-        image: ghcr.io/michaeltrip/lmsensors-container:main
+        image: ghcr.io/michaeltrip/lmsensors-container:latest
         imagePullPolicy: Always
         env:
+        - name: TZ
+          value: "Europe/Amsterdam"
         - name: NODE_NAME
           valueFrom:
             fieldRef:
