@@ -655,10 +655,10 @@
 
     async function handleNoDataAvailable() {
       showTerminalMessage('No sensor data found. Waiting for data collection to complete...');
-      
+
       // Use configured fallback nodes or default ones
       const fallbackNodes = config.fallbackNodes.length > 0 ? config.fallbackNodes : ['node-001', 'node-002', 'node-003'];
-      
+
       nodes = fallbackNodes.map((nodeName, index) => {
         const statuses = ['online', 'warning', 'offline'];
         return {

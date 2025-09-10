@@ -30,22 +30,22 @@ function view_config() {
 function add_node() {
     local name=$1
     local display=$2
-    
+
     if [[ -z "$name" ]]; then
         echo "❌ Error: Node name is required"
         echo "Usage: $0 add <name> [display_name]"
         exit 1
     fi
-    
+
     if [[ -z "$display" ]]; then
         display=$name
     fi
-    
+
     echo "➕ Adding node: $name ($display)"
-    
+
     # Get current config
     local current_config=$(kubectl get configmap $CONFIGMAP -n $NAMESPACE -o jsonpath='{.data.nodes\.json}')
-    
+
     # Add new node using jq
     local new_config=$(echo "$current_config" | jq --arg name "$name" --arg display "$display" '
         .nodes += [{
@@ -55,35 +55,35 @@ function add_node() {
             "status": "online"
         }]
     ')
-    
+
     # Update ConfigMap
     kubectl create configmap $CONFIGMAP --from-literal="nodes.json=$new_config" --dry-run=client -o yaml | kubectl apply -n $NAMESPACE -f -
-    
+
     echo "✅ Node added successfully!"
 }
 
 function remove_node() {
     local name=$1
-    
+
     if [[ -z "$name" ]]; then
         echo "❌ Error: Node name is required"
         echo "Usage: $0 remove <name>"
         exit 1
     fi
-    
+
     echo "🗑️  Removing node: $name"
-    
+
     # Get current config
     local current_config=$(kubectl get configmap $CONFIGMAP -n $NAMESPACE -o jsonpath='{.data.nodes\.json}')
-    
+
     # Remove node using jq
     local new_config=$(echo "$current_config" | jq --arg name "$name" '
         .nodes = (.nodes | map(select(.name != $name)))
     ')
-    
+
     # Update ConfigMap
     kubectl create configmap $CONFIGMAP --from-literal="nodes.json=$new_config" --dry-run=client -o yaml | kubectl apply -n $NAMESPACE -f -
-    
+
     echo "✅ Node removed successfully!"
 }
 
@@ -100,18 +100,18 @@ function backup_config() {
 
 function restore_config() {
     local backup_file=$1
-    
+
     if [[ -z "$backup_file" ]] || [[ ! -f "$backup_file" ]]; then
         echo "❌ Error: Backup file not found or not specified"
         echo "Usage: $0 restore <backup_file>"
         exit 1
     fi
-    
+
     echo "🔄 Restoring configuration from: $backup_file"
-    
+
     local config_content=$(cat "$backup_file")
     kubectl create configmap $CONFIGMAP --from-literal="nodes.json=$config_content" --dry-run=client -o yaml | kubectl apply -n $NAMESPACE -f -
-    
+
     echo "✅ Configuration restored successfully!"
 }
 
@@ -129,7 +129,7 @@ function show_example() {
     },
     {
       "name": "virt2",
-      "displayName": "Virtual Node 2", 
+      "displayName": "Virtual Node 2",
       "description": "Secondary virtual machine",
       "status": "online"
     },

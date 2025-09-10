@@ -15,14 +15,14 @@ data:
           "status": "online"
         },
         {
-          "name": "virt2", 
+          "name": "virt2",
           "displayName": "Virtual Node 2",
           "description": "Secondary virtual machine",
           "status": "online"
         },
         {
           "name": "virt3",
-          "displayName": "Virtual Node 3", 
+          "displayName": "Virtual Node 3",
           "description": "Tertiary virtual machine",
           "status": "online"
         }
