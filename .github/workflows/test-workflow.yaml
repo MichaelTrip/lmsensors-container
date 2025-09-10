@@ -1,0 +1,19 @@
+name: Test Workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "feature/complete-rehaul" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: |
+          echo "Workflow is working!"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"

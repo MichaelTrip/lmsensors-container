@@ -85,7 +85,7 @@ Define your nodes in the ConfigMap with rich metadata:
   "nodes": [
     {
       "name": "virt1",
-      "displayName": "Virtual Node 1", 
+      "displayName": "Virtual Node 1",
       "description": "Primary virtual machine",
       "status": "online"
     },
@@ -168,14 +168,14 @@ kubectl apply -f deployment-files/configmap.yaml -n sensordash
 ## 🔧 Requirements
 
 - Kubernetes cluster (1.19+)
-- Persistent volume support (`ReadWriteMany`) 
+- Persistent volume support (`ReadWriteMany`)
 - Privileged container support (for hardware access)
 - `jq` command-line tool (for config-manager.sh)
 
 ## 📋 What You'll Monitor
 
 - 🌡️ **CPU Temperature** - Real-time thermal monitoring
-- ⚡ **Voltage Rails** - Power supply monitoring  
+- ⚡ **Voltage Rails** - Power supply monitoring
 - 🌀 **Fan Speeds** - Cooling system status
 - 💾 **System Info** - Hardware specifications
 - 📊 **Node Status** - Health indicators with custom metadata
@@ -197,7 +197,7 @@ kubectl apply -f deployment-files/configmap.yaml -n sensordash
 ### 📁 Project Structure
 ```
 ├── sensor-container/         # DaemonSet container source
-├── web-container/           # Web interface container source  
+├── web-container/           # Web interface container source
 ├── deployment-files/        # Kubernetes manifests
 │   ├── configmap.yaml      # Dynamic node configuration
 │   ├── webserver-modern.yaml # Web deployment with ConfigMap
@@ -249,7 +249,7 @@ kubectl port-forward service/sensordash-service 8080:80 -n sensordash
       "status": "online"
     },
     {
-      "name": "worker-01", 
+      "name": "worker-01",
       "displayName": "Worker Node 01",
       "description": "Production workload node",
       "status": "online"
@@ -264,14 +264,14 @@ kubectl port-forward service/sensordash-service 8080:80 -n sensordash
   "nodes": [
     {
       "name": "gpu-node-01",
-      "displayName": "🎮 GPU Worker 01", 
+      "displayName": "🎮 GPU Worker 01",
       "description": "NVIDIA RTX 4090 - ML Training Node",
       "status": "online"
     },
     {
       "name": "storage-node",
       "displayName": "💾 Storage Node",
-      "description": "High-capacity storage with NVMe arrays", 
+      "description": "High-capacity storage with NVMe arrays",
       "status": "warning"
     }
   ],
@@ -304,7 +304,7 @@ kubectl delete namespace sensordash --cascade=foreground
 
 The cleanup script will:
 - Remove all deployments and services
-- Delete the sensordash namespace  
+- Delete the sensordash namespace
 - Optionally preserve your sensor data
 - Confirm before destructive operations
 
@@ -372,7 +372,7 @@ kubectl apply -f deployment-files/configmap.yaml -n sensordash
 ### Contributing
 
 1. 🍴 Fork the repository
-2. 🌿 Create a feature branch  
+2. 🌿 Create a feature branch
 3. 📝 Use conventional commits
 4. 🧪 Test your changes
 5. � Test ConfigMap functionality
@@ -424,7 +424,7 @@ Use different ConfigMaps per environment:
 # Development
 kubectl apply -f configmaps/dev-config.yaml -n sensordash-dev
 
-# Production  
+# Production
 kubectl apply -f configmaps/prod-config.yaml -n sensordash-prod
 ```
 
