@@ -1,6 +1,7 @@
 name: 🚀 Build & Release Containers
 
 on:
+  workflow_dispatch:  # Allow manual triggering
   schedule:
     - cron: '0 16 * * *'
   push:
