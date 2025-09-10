@@ -1,11 +1,831 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Using JavaScript for refresh to maintain tab states -->
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LMSensors and Fastfetch Data</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LMSensors Terminal Monitor</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
+<style>
+  /* Terminal theme variables */
+  :root {
+    --terminal-bg: #0a0a0a;
+    --terminal-border: #1a1a1a;
+    --primary-color: #00ff41;
+    --secondary-color: #1a1a1a;
+    --text-color: #c0c0c0;
+    --accent-color: #00ffff;
+    --border-color: #333333;
+    --error-color: #ff4444;
+    --warning-color: #ffaa00;
+    --info-color: #44aaff;
+    --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+    --terminal-shadow: 0 0 20px rgba(0, 255, 65, 0.2), 0 0 40px rgba(0, 255, 65, 0.1);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-mono);
+    background: radial-gradient(ellipse at center, #111111 0%, #000000 70%);
+    color: var(--text-color);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  /* Terminal window styling */
+  .terminal-window {
+    width: 100%;
+    max-width: 1400px;
+    height: 90vh;
+    background: linear-gradient(135deg, var(--terminal-bg) 0%, #0f0f0f 100%);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--terminal-shadow);
+    position: relative;
+  }
+
+  .terminal-title-bar {
+    background: linear-gradient(to bottom, #555555, #333333);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 6px 6px 0 0;
+  }
+
+  .terminal-buttons {
+    display: flex;
+    gap: 6px;
+  }
+
+  .terminal-btn {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-close { background: #ff5f57; }
+  .btn-minimize { background: #ffbd2e; }
+  .btn-maximize { background: #28ca42; }
+
+  .terminal-title {
+    color: #cccccc;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .terminal-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .terminal-control-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    transition: all 0.2s;
+  }
+
+  .terminal-control-btn:hover {
+    background-color: var(--secondary-color);
+    border-color: var(--primary-color);
+  }
+
+  /* Terminal content area */
+  .terminal-content {
+    flex: 1;
+    padding: 20px;
+    overflow: auto;
+    background-color: var(--terminal-bg);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* Terminal prompt styling */
+  .prompt {
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  .prompt::before {
+    content: "root@sensors-cluster:~$ ";
+    color: var(--primary-color);
+  }
+
+  /* Command output styling */
+  .command-output {
+    margin: 10px 0;
+    padding-left: 0;
+  }
+
+  .command-header {
+    color: var(--accent-color);
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .command-header::before {
+    content: "$ ";
+    color: var(--primary-color);
+  }
+
+  /* Tab styling */
+  .terminal-tabs {
+    display: flex;
+    background-color: var(--secondary-color);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .terminal-tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    color: #888888;
+    font-weight: 400;
+    font-size: 12px;
+    border-right: 1px solid var(--border-color);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .terminal-tab:hover {
+    background-color: rgba(0, 255, 65, 0.1);
+    color: var(--text-color);
+  }
+
+  .terminal-tab.active {
+    background-color: var(--terminal-bg);
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .terminal-tab.active::before {
+    content: "●";
+    color: var(--primary-color);
+    margin-right: 4px;
+  }
+
+  /* Node status indicators */
+  .node-status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  .status-online {
+    background-color: var(--primary-color);
+    box-shadow: 0 0 4px var(--primary-color);
+  }
+
+  .status-warning {
+    background-color: var(--warning-color);
+    box-shadow: 0 0 4px var(--warning-color);
+  }
+
+  .status-offline {
+    background-color: var(--error-color);
+    box-shadow: 0 0 4px var(--error-color);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Tab content */
+  .tab-content {
+    display: none;
+    padding: 0;
+    height: 100%;
+  }
+
+  .tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* File content styling */
+  .file-content {
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 8px 0;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+
+  /* Section headers */
+  .section-header {
+    color: var(--accent-color);
+    margin: 20px 0 10px 0;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-left: 4px solid var(--primary-color);
+    padding-left: 12px;
+  }
+
+  /* Status bar */
+  .terminal-status {
+    background-color: var(--secondary-color);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #888888;
+    border-top: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+  }
+
+  /* Loading indicator */
+  .loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(0, 255, 65, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Cursor */
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background-color: var(--primary-color);
+    margin-left: 2px;
+    animation: cursor-blink 1s step-end infinite;
+  }
+
+  @keyframes cursor-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--terminal-bg);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+  }
+
+  /* Error messages */
+  .error-message {
+    color: var(--error-color);
+    font-weight: 500;
+  }
+
+  .error-message::before {
+    content: "[ERROR] ";
+    font-weight: 700;
+  }
+
+  /* Warning messages */
+  .warning-message {
+    color: var(--warning-color);
+    font-weight: 500;
+  }
+
+  .warning-message::before {
+    content: "[WARN] ";
+    font-weight: 700;
+  }
+
+  /* Info messages */
+  .info-message {
+    color: var(--info-color);
+    font-weight: 500;
+  }
+
+  .info-message::before {
+    content: "[INFO] ";
+    font-weight: 700;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .terminal-window {
+      margin: 5px;
+    }
+    
+    .terminal-tab {
+      padding: 6px 12px;
+      font-size: 11px;
+    }
+    
+    .terminal-content {
+      padding: 15px;
+      font-size: 12px;
+    }
+  }
+
+  /* Terminal glow effect */
+  .terminal-window::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 8px;
+    box-shadow: inset 0 0 50px rgba(0, 255, 65, 0.1);
+    pointer-events: none;
+  }
+
+  /* Scanlines effect */
+  .terminal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 255, 65, 0.03) 2px,
+      rgba(0, 255, 65, 0.03) 4px
+    );
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div class="terminal-window">
+    <div class="terminal-title-bar">
+      <div class="terminal-buttons">
+        <button class="terminal-btn btn-close" onclick="closeTerminal()"></button>
+        <button class="terminal-btn btn-minimize" onclick="minimizeTerminal()"></button>
+        <button class="terminal-btn btn-maximize" onclick="toggleFullscreen()"></button>
+      </div>
+      <div class="terminal-title">sensors@k8s-cluster: /var/log/sensors</div>
+      <div class="terminal-controls">
+        <button class="terminal-control-btn" id="refresh-btn" title="Refresh Data">
+          <i class="fas fa-sync-alt"></i> REFRESH
+        </button>
+        <button class="terminal-control-btn" onclick="clearScreen()" title="Clear Screen">
+          <i class="fas fa-broom"></i> CLEAR
+        </button>
+      </div>
+    </div>
+
+    <div class="terminal-tabs">
+      <!-- Tabs will be dynamically generated here -->
+    </div>
+
+    <div class="terminal-content">
+      <div id="content-container">
+        <div class="prompt">Initializing sensor monitoring system<span class="cursor"></span></div>
+        <!-- Tab content will be dynamically generated here -->
+      </div>
+    </div>
+
+    <div class="terminal-status">
+      <div class="status-item">
+        <div class="status-indicator"></div>
+        <span id="status-text">CONNECTED</span>
+      </div>
+      <div class="status-item">
+        <span id="last-updated">LAST UPDATE: <span id="update-time">INITIALIZING...</span></span>
+      </div>
+      <div class="status-item">
+        <span id="node-count">NODES: <span id="node-count-value">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var shellPrompt = "root@sensors-cluster:~$ cat ";
+    var nodes = [];
+    var lastUpdateTime = new Date();
+    var terminalInitialized = false;
+
+    // Terminal control functions
+    function closeTerminal() {
+      if (confirm('Are you sure you want to close the sensor monitor?')) {
+        window.close();
+      }
+    }
+
+    function minimizeTerminal() {
+      document.querySelector('.terminal-window').style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        document.querySelector('.terminal-window').style.transform = 'scale(1)';
+      }, 200);
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    function clearScreen() {
+      const contentContainer = document.getElementById("content-container");
+      contentContainer.innerHTML = '<div class="prompt">Screen cleared. Reinitializing sensor monitoring system<span class="cursor"></span></div>';
+      setTimeout(() => {
+        setupTabs();
+      }, 1000);
+    }
+
+    // Function to fetch and parse the list of available node data files
+    async function discoverNodes() {
+      try {
+        // Update status indicator
+        document.getElementById('status-text').innerHTML = '<span class="loading-spinner"></span>SCANNING';
+        document.getElementById('node-count-value').textContent = '...';
+
+        // Fetch the list of files from the server
+        const response = await fetch('data/file-list.json');
+        if (!response.ok) {
+          console.error('Failed to fetch file list');
+          showTerminalError('Failed to fetch sensor data. Check server connectivity.');
+          document.getElementById('status-text').innerHTML = 'DISCONNECTED';
+          setTimeout(discoverNodes, 10000);
+          return;
+        }
+
+        const files = await response.json();
+        const nodeMap = new Map();
+
+        // Process each file to identify nodes
+        files.forEach(file => {
+          // Extract node name from filenames like "lmsensors-nodename.txt" or "fastfetch-nodename.txt"
+          const lmMatch = file.match(/^lmsensors-(.+)\.txt$/);
+          const ffMatch = file.match(/^fastfetch-(.+)\.txt$/);
+
+          if (lmMatch) {
+            const nodeName = lmMatch[1];
+            if (!nodeMap.has(nodeName)) {
+              nodeMap.set(nodeName, {
+                name: nodeName,
+                lmsensorsFiles: [],
+                fastfetchFiles: [],
+                status: 'online',
+                lastSeen: new Date()
+              });
+            }
+            nodeMap.get(nodeName).lmsensorsFiles.push(file);
+          } else if (ffMatch) {
+            const nodeName = ffMatch[1];
+            if (!nodeMap.has(nodeName)) {
+              nodeMap.set(nodeName, {
+                name: nodeName,
+                lmsensorsFiles: [],
+                fastfetchFiles: [],
+                status: 'online',
+                lastSeen: new Date()
+              });
+            }
+            nodeMap.get(nodeName).fastfetchFiles.push(file);
+          }
+        });
+
+        // Convert Map to array and sort by node name
+        nodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+        // If no nodes were found, show placeholder
+        if (nodes.length === 0) {
+          showTerminalMessage('No sensor data found. Waiting for data collection to complete...');
+          
+          // Fallback to placeholder nodes
+          nodes = [
+            {name: 'node-001', status: 'online', lmsensorsFiles: [], fastfetchFiles: [], lastSeen: new Date()},
+            {name: 'node-002', status: 'warning', lmsensorsFiles: [], fastfetchFiles: [], lastSeen: new Date()},
+            {name: 'node-003', status: 'offline', lmsensorsFiles: [], fastfetchFiles: [], lastSeen: new Date()}
+          ];
+
+          setTimeout(discoverNodes, 10000);
+        }
+
+        // Update status
+        document.getElementById('status-text').innerHTML = 'CONNECTED';
+        document.getElementById('node-count-value').textContent = nodes.length;
+        lastUpdateTime = new Date();
+        updateTimestamp();
+
+        // Setup the UI with the discovered nodes
+        setupTabs();
+      } catch (error) {
+        console.error('Error discovering nodes:', error);
+        showTerminalError(`System error: ${error.message}`);
+        document.getElementById('status-text').innerHTML = 'ERROR';
+      }
+    }
+
+    function showTerminalMessage(message) {
+      const contentContainer = document.getElementById("content-container");
+      contentContainer.innerHTML = `<div class="prompt">${message}<span class="cursor"></span></div>`;
+    }
+
+    function showTerminalError(message) {
+      const contentContainer = document.getElementById("content-container");
+      contentContainer.innerHTML = `<div class="error-message">${message}</div>`;
+    }
+
+    function updateTimestamp() {
+      const now = new Date();
+      const diff = Math.floor((now - lastUpdateTime) / 1000);
+
+      let timeText;
+      if (diff < 60) {
+        timeText = `${diff}s ago`;
+      } else if (diff < 3600) {
+        timeText = `${Math.floor(diff / 60)}m ago`;
+      } else {
+        timeText = `${Math.floor(diff / 3600)}h ago`;
+      }
+
+      document.getElementById('update-time').textContent = timeText;
+    }
+
+    function loadFiles(fileNames, container) {
+      // If no files to load, show a placeholder message
+      if (!fileNames || fileNames.length === 0) {
+        var placeholderElement = document.createElement("div");
+        placeholderElement.className = "file-content";
+        placeholderElement.innerHTML = '<span class="info-message">No data available for this node yet.</span>';
+        container.appendChild(placeholderElement);
+        return;
+      }
+
+      fileNames.forEach(function(fileName){
+        fetch('data/' + fileName)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.text();
+        })
+        .then(data => {
+          var preElement = document.createElement("pre");
+          preElement.className = "file-content";
+          preElement.textContent = data;
+
+          var headerElement = document.createElement("div");
+          headerElement.className = "command-header";
+          headerElement.textContent = fileName;
+
+          var divElement = document.createElement("div");
+          divElement.className = "command-output";
+          divElement.appendChild(headerElement);
+          divElement.appendChild(preElement);
+
+          container.appendChild(divElement);
+        })
+        .catch(error => {
+          console.error(`Error loading ${fileName}:`, error);
+          var errorElement = document.createElement("div");
+          errorElement.className = "command-output";
+          errorElement.innerHTML = `<div class="error-message">Failed to load ${fileName}: ${error.message}</div>`;
+          container.appendChild(errorElement);
+        });
+      });
+    }
+
+    function getStatusIcon(status) {
+      switch(status) {
+        case 'online':
+          return '<span class="node-status status-online" title="Online"></span>';
+        case 'warning':
+          return '<span class="node-status status-warning" title="Warning"></span>';
+        case 'offline':
+          return '<span class="node-status status-offline" title="Offline"></span>';
+        default:
+          return '<span class="node-status status-online" title="Online"></span>';
+      }
+    }
+
+    function setupTabs() {
+      var tabs = document.querySelector(".terminal-tabs");
+      var contentContainer = document.getElementById("content-container");
+
+      // Clear existing tabs and content
+      tabs.innerHTML = '';
+      contentContainer.innerHTML = '';
+
+      // Show initialization message if first time
+      if (!terminalInitialized) {
+        contentContainer.innerHTML = '<div class="prompt">Sensor monitoring system initialized. Select a node to view data<span class="cursor"></span></div>';
+        terminalInitialized = true;
+      }
+
+      nodes.forEach(function(node) {
+        // Create terminal tab with status indicator
+        var tab = document.createElement("div");
+        tab.className = "terminal-tab";
+        tab.innerHTML = `${getStatusIcon(node.status)}<i class="fas fa-server"></i> ${node.name}`;
+        tab.setAttribute("data-tab", node.name);
+        tabs.appendChild(tab);
+
+        // Create tab content container
+        var tabContent = document.createElement("div");
+        tabContent.className = "tab-content";
+        tabContent.id = node.name;
+
+        // Add sensors section
+        var sensorSection = document.createElement("div");
+        sensorSection.className = "section-header";
+        sensorSection.innerHTML = '<i class="fas fa-thermometer-half"></i> Hardware Sensors';
+        tabContent.appendChild(sensorSection);
+
+        var lmsensorsContainer = document.createElement("div");
+        lmsensorsContainer.className = "lmsensors";
+        loadFiles(node.lmsensorsFiles, lmsensorsContainer);
+        tabContent.appendChild(lmsensorsContainer);
+
+        // Add system info section
+        var sysInfoSection = document.createElement("div");
+        sysInfoSection.className = "section-header";
+        sysInfoSection.innerHTML = '<i class="fas fa-microchip"></i> System Information';
+        tabContent.appendChild(sysInfoSection);
+
+        var fastfetchContainer = document.createElement("div");
+        fastfetchContainer.className = "fastfetch";
+        loadFiles(node.fastfetchFiles, fastfetchContainer);
+        tabContent.appendChild(fastfetchContainer);
+
+        contentContainer.appendChild(tabContent);
+      });
+
+      // Get saved tab from localStorage or default to first node
+      const savedTab = localStorage.getItem('activeTab');
+      const firstNode = nodes.length > 0 ? nodes[0].name : null;
+      const tabToActivate = savedTab && document.querySelector(`.terminal-tab[data-tab='${savedTab}']`) ? savedTab : firstNode;
+
+      if (tabToActivate) {
+        setActiveTab(tabToActivate);
+      }
+
+      // Add click event listeners to tabs
+      tabs.addEventListener("click", function(event) {
+        const tabElement = event.target.closest('.terminal-tab');
+        if (tabElement) {
+          const target = tabElement.getAttribute("data-tab");
+          setActiveTab(target);
+        }
+      });
+    }
+
+    // Function to set active tab and save to localStorage
+    function setActiveTab(tabName) {
+      document.querySelectorAll(".tab-content").forEach(function(content) {
+        content.classList.remove("active");
+      });
+      document.querySelectorAll(".terminal-tab").forEach(function(tab) {
+        tab.classList.remove("active");
+      });
+
+      const targetTab = document.querySelector(`.terminal-tab[data-tab='${tabName}']`);
+      const targetContent = document.getElementById(tabName);
+
+      if (targetTab && targetContent) {
+        targetTab.classList.add("active");
+        targetContent.classList.add("active");
+        localStorage.setItem('activeTab', tabName);
+      }
+    }
+
+    // Initialize the sensor monitoring system
+    function initializeSensorMonitor() {
+      showTerminalMessage('Initializing sensor monitoring system...');
+      setTimeout(() => {
+        discoverNodes();
+      }, 1500);
+    }
+
+    // Start initialization
+    initializeSensorMonitor();
+
+    // Refresh node discovery every 30 seconds
+    setInterval(discoverNodes, 30000);
+
+    // Update the "last updated" timestamp every 30 seconds
+    setInterval(updateTimestamp, 30000);
+
+    // Manual refresh button
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+      showTerminalMessage('Refreshing sensor data...');
+      setTimeout(() => {
+        discoverNodes();
+      }, 500);
+    });
+
+    // Page visibility handling
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        // Page became visible, refresh data
+        discoverNodes();
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(event) {
+      if (event.ctrlKey) {
+        switch(event.key) {
+          case 'r':
+            event.preventDefault();
+            discoverNodes();
+            break;
+          case 'l':
+            event.preventDefault();
+            clearScreen();
+            break;
+          case 'f':
+            event.preventDefault();
+            toggleFullscreen();
+            break;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
 <style>
   :root {
     --bg-color: #0d1117;
