@@ -1,0 +1,326 @@
+name: 🚀 Build & Release Containers
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    - cron: '0 16 * * *'
+  push:
+    branches:
+      - "main"
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  SENSOR_IMAGE_NAME: michaeltrip/lmsensors-daemonset-container
+  WEB_IMAGE_NAME: michaeltrip/lmsensors-web
+
+jobs:
+  # Determine semantic version based on conventional commits
+  semantic-version:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version-type: ${{ steps.version.outputs.version-type }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate semantic version
+        id: version
+        run: |
+          # Get the latest tag, or start with v0.0.0 if no tags exist
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+
+          # Remove 'v' prefix for version calculation
+          CURRENT_VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # Get commits since last tag
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" ${LATEST_TAG}..HEAD)
+          fi
+
+          echo "Commits since last tag:"
+          echo "$COMMITS"
+
+          # Determine version bump based on conventional commits
+          VERSION_TYPE="patch"
+
+          if echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?!:|^[^:]+!:"; then
+            # Breaking change
+            VERSION_TYPE="major"
+            ((MAJOR++))
+            MINOR=0
+            PATCH=0
+          elif echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?:"; then
+            # New feature
+            VERSION_TYPE="minor"
+            ((MINOR++))
+            PATCH=0
+          elif echo "$COMMITS" | grep -qE "^(fix|bugfix|perf|refactor)(\(.+\))?:"; then
+            # Bug fix, performance improvement, or refactoring
+            VERSION_TYPE="patch"
+            ((PATCH++))
+          else
+            # Default to patch for any other changes
+            VERSION_TYPE="patch"
+            ((PATCH++))
+          fi
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION (${VERSION_TYPE} bump)"
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "version-type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+
+  build-sensor-container:
+    runs-on: ubuntu-latest
+    needs: semantic-version
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Sensor Docker image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.SENSOR_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.semantic-version.outputs.version }},enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,suffix=-{{date 'YYYYMMDD-HHmmss'}}
+            type=raw,value={{branch}}-{{sha}},enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=LMSensors DaemonSet Container
+            org.opencontainers.image.description=Hardware sensor monitoring for Kubernetes nodes
+            org.opencontainers.image.vendor=MichaelTrip
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push Sensor Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./sensor-container
+          file: ./sensor-container/Containerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=sensor
+          cache-to: type=gha,mode=max,scope=sensor
+          annotations: |
+            org.opencontainers.image.title=LMSensors DaemonSet Container
+            org.opencontainers.image.description=Hardware sensor monitoring for Kubernetes nodes
+
+  build-web-container:
+    runs-on: ubuntu-latest
+    needs: semantic-version
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Web Docker image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.semantic-version.outputs.version }},enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,suffix=-{{date 'YYYYMMDD-HHmmss'}}
+            type=raw,value={{branch}}-{{sha}},enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=LMSensors Web Dashboard
+            org.opencontainers.image.description=Modern web interface for hardware sensor monitoring
+            org.opencontainers.image.vendor=MichaelTrip
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push Web Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web-container
+          file: ./web-container/Containerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+          annotations: |
+            org.opencontainers.image.title=LMSensors Web Dashboard
+            org.opencontainers.image.description=Modern web interface for hardware sensor monitoring
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [semantic-version, build-sensor-container, build-web-container]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push semantic version tag
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          VERSION="${{ needs.semantic-version.outputs.version }}"
+          VERSION_TYPE="${{ needs.semantic-version.outputs.version-type }}"
+
+          echo "Creating tag: $VERSION"
+          git tag -a "$VERSION" -m "🚀 Release $VERSION
+
+          Version bump: $VERSION_TYPE
+
+          ## 📦 Container Images
+          - \`ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:latest\`
+          - \`ghcr.io/${{ env.WEB_IMAGE_NAME }}:latest\`
+
+          Built from commit: ${{ github.sha }}"
+
+          git push origin "$VERSION"
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          VERSION="${{ needs.semantic-version.outputs.version }}"
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+
+          echo "## 🚀 What's Changed" > release_notes.md
+          echo "" >> release_notes.md
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "### 📝 Commits since $PREVIOUS_TAG:" >> release_notes.md
+            git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..HEAD >> release_notes.md
+          else
+            echo "### 📝 Initial release commits:" >> release_notes.md
+            git log --pretty=format:"- %s (%h)" HEAD >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "## 📦 Container Images" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "| Component | Image | Size |" >> release_notes.md
+          echo "|-----------|-------|------|" >> release_notes.md
+          echo "| **Sensor DaemonSet** | \`ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:latest\` | ![Size](https://img.shields.io/docker/image-size/ghcr.io/${{ env.SENSOR_IMAGE_NAME }}/latest) |" >> release_notes.md
+          echo "| **Web Dashboard** | \`ghcr.io/${{ env.WEB_IMAGE_NAME }}:latest\` | ![Size](https://img.shields.io/docker/image-size/ghcr.io/${{ env.WEB_IMAGE_NAME }}/latest) |" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## 🛠️ Quick Deploy" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "\`\`\`bash" >> release_notes.md
+          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$VERSION/deployment-files/pvc.yaml" >> release_notes.md
+          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$VERSION/deployment-files/daemonset.yaml" >> release_notes.md
+          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$VERSION/deployment-files/webserver-modern.yaml" >> release_notes.md
+          echo "\`\`\`" >> release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.semantic-version.outputs.version }}
+          name: 🚀 Release ${{ needs.semantic-version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-deployment-files:
+    runs-on: ubuntu-latest
+    needs: [build-sensor-container, build-web-container]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update deployment files with latest tags
+        run: |
+          echo "🔄 Updating deployment files to use latest container images..."
+
+          # Update daemonset.yaml with new sensor image
+          sed -i "s|image: ghcr\.io/michaeltrip/lmsensors-daemonset-container:.*|image: ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:latest|g" deployment-files/daemonset.yaml
+
+          # Update webserver-modern.yaml with new web image
+          sed -i "s|image: ghcr\.io/michaeltrip/lmsensors-web:.*|image: ghcr.io/${{ env.WEB_IMAGE_NAME }}:latest|g" deployment-files/webserver-modern.yaml
+
+          # Check if files were actually modified
+          if git diff --quiet; then
+            echo "✅ Deployment files are already up to date"
+            exit 0
+          fi
+
+          echo "📝 Deployment files updated, committing changes..."
+
+          # Commit and push the changes
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add deployment-files/daemonset.yaml deployment-files/webserver-modern.yaml
+          git commit -m "chore: update deployment files with latest container images
+
+          - Updated sensor image: ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:latest
+          - Updated web image: ghcr.io/${{ env.WEB_IMAGE_NAME }}:latest
+
+          Auto-generated from workflow run: ${{ github.run_id }}"
+
+          git push origin main

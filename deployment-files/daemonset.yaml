@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: lmsensors
-        image: ghcr.io/michaeltrip/lmsensors-container:latest
+        image: ghcr.io/michaeltrip/lmsensors-daemonset-container:latest
         imagePullPolicy: Always
         env:
         - name: TZ
