@@ -445,7 +445,7 @@
         container.appendChild(placeholderElement);
         return;
       }
-
+      
       fileNames.forEach(function(fileName){
         fetch('data/' + fileName)
         .then(response => {

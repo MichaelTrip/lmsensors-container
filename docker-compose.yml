@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Sensor container (simulated - won't work without privileged mode and host access)
+  sensor:
+    build:
+      context: ./sensor-container
+      dockerfile: Containerfile
+    volumes:
+      - sensor-data:/data
+    environment:
+      - NODE_NAME=docker-node
+      - TZ=Europe/Amsterdam
+    # Note: This won't collect real sensor data in Docker
+    # Use for testing container builds only
+
+  # Web dashboard
+  web:
+    build:
+      context: ./web-container
+      dockerfile: Containerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - sensor-data:/usr/share/nginx/html/data:ro
+    depends_on:
+      - sensor
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sensor-data:
+    driver: local
+
+networks:
+  default:
+    name: lmsensors-network

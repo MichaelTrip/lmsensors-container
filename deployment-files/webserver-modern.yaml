@@ -16,13 +16,10 @@ spec:
     spec:
       containers:
       - name: webserver
-        image: nginx:alpine
+        image: ghcr.io/michaeltrip/lmsensors-web:latest
         ports:
         - containerPort: 80
         volumeMounts:
-        - name: html-content
-          mountPath: /usr/share/nginx/html/index.html
-          subPath: index.html
         - name: sensor-data
           mountPath: /usr/share/nginx/html/data
         resources:
@@ -45,9 +42,6 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
       volumes:
-      - name: html-content
-        configMap:
-          name: sensordash-config
       - name: sensor-data
         persistentVolumeClaim:
           claimName: pvc-lmsensors

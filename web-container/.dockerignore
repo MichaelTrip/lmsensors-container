@@ -1,0 +1,20 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Other containers
+../sensor-container
+../deployment-files
+../.github
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
