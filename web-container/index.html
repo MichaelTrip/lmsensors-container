@@ -489,7 +489,9 @@
     // Load configuration from ConfigMap
     async function loadConfiguration() {
       try {
-        const response = await fetch('/config/nodes.json');
+        // Add cache-busting parameter to ensure fresh config
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/config/nodes.json?t=${timestamp}`);
         if (response.ok) {
           const configData = await response.json();
           configuredNodes = configData.nodes || [];
@@ -613,16 +615,18 @@
             };
           });
 
-          // Add any discovered nodes not in configuration
-          discoveredNodes.forEach(discovered => {
-            if (!configuredNodes.find(c => c.name === discovered.name)) {
-              nodes.push({
-                ...discovered,
-                displayName: discovered.name,
-                description: 'Auto-discovered node'
-              });
-            }
-          });
+          // Only add discovered nodes not in configuration if autoDiscovery is enabled
+          if (config.autoDiscovery) {
+            discoveredNodes.forEach(discovered => {
+              if (!configuredNodes.find(c => c.name === discovered.name)) {
+                nodes.push({
+                  ...discovered,
+                  displayName: discovered.name,
+                  description: 'Auto-discovered node'
+                });
+              }
+            });
+          }
         } else {
           // Use discovered nodes as-is if no configuration
           nodes = discoveredNodes.map(node => ({
