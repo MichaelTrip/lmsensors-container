@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sensordash-config
+  labels:
+    app: sensordash
+data:
+  nodes.json: |
+    {
+      "nodes": [
+        {
+          "name": "virt1",
+          "displayName": "Virtual Node 1",
+          "description": "Primary virtual machine",
+          "status": "online"
+        },
+        {
+          "name": "virt2", 
+          "displayName": "Virtual Node 2",
+          "description": "Secondary virtual machine",
+          "status": "online"
+        },
+        {
+          "name": "virt3",
+          "displayName": "Virtual Node 3", 
+          "description": "Tertiary virtual machine",
+          "status": "online"
+        }
+      ],
+      "settings": {
+        "refreshInterval": 30000,
+        "fallbackNodes": ["node-001", "node-002", "node-003"],
+        "autoDiscovery": true,
+        "displayMode": "terminal"
+      }
+    }
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Serve static files
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Serve sensor data files
+        location /data/ {
+            alias /usr/share/nginx/html/data/;
+            autoindex on;
+            autoindex_format json;
+        }
+
+        # Serve node configuration from ConfigMap
+        location /config/nodes.json {
+            alias /etc/sensordash/nodes.json;
+            add_header Content-Type application/json;
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }

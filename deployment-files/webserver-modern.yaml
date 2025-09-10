@@ -22,6 +22,10 @@ spec:
         volumeMounts:
         - name: sensor-data
           mountPath: /usr/share/nginx/html/data
+        - name: config-volume
+          mountPath: /etc/sensordash
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
         resources:
           limits:
             cpu: "0.5"
@@ -45,6 +49,18 @@ spec:
       - name: sensor-data
         persistentVolumeClaim:
           claimName: pvc-lmsensors
+      - name: config-volume
+        configMap:
+          name: sensordash-config
+          items:
+          - key: nodes.json
+            path: nodes.json
+      - name: nginx-config
+        configMap:
+          name: sensordash-config
+          items:
+          - key: nginx.conf
+            path: default.conf
 ---
 apiVersion: v1
 kind: Service
