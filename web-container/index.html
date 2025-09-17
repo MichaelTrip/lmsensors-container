@@ -146,11 +146,6 @@
     font-weight: 500;
   }
 
-  .command-header::before {
-    content: "$ cat ";
-    color: var(--primary-color);
-  }
-
   /* Tab styling */
   .terminal-tabs {
     display: flex;
@@ -729,7 +724,7 @@
 
           var headerElement = document.createElement("div");
           headerElement.className = "command-header";
-          headerElement.textContent = fileName;
+          headerElement.innerHTML = `<span style="color: var(--primary-color);">$ cat </span>${fileName}`;
 
           var divElement = document.createElement("div");
           divElement.className = "command-output";
