@@ -564,34 +564,27 @@
 
         // Process each file to identify nodes
         files.forEach(file => {
-          // Extract node name from filenames like "lmsensors-nodename.txt" or "fastfetch-nodename.txt"
-          const lmMatch = file.match(/^lmsensors-(.+)\.txt$/);
-          const ffMatch = file.match(/^fastfetch-(.+)\.txt$/);
+          // Extract node name and file type from filenames like "filetype-nodename.txt"
+          const match = file.match(/^(.+?)-(.+)\.txt$/);
 
-          if (lmMatch) {
-            const nodeName = lmMatch[1];
+          if (match) {
+            const fileType = match[1];
+            const nodeName = match[2];
+
             if (!nodeMap.has(nodeName)) {
               nodeMap.set(nodeName, {
                 name: nodeName,
-                lmsensorsFiles: [],
-                fastfetchFiles: [],
+                files: {},
                 status: 'online',
                 lastSeen: new Date()
               });
             }
-            nodeMap.get(nodeName).lmsensorsFiles.push(file);
-          } else if (ffMatch) {
-            const nodeName = ffMatch[1];
-            if (!nodeMap.has(nodeName)) {
-              nodeMap.set(nodeName, {
-                name: nodeName,
-                lmsensorsFiles: [],
-                fastfetchFiles: [],
-                status: 'online',
-                lastSeen: new Date()
-              });
+
+            const node = nodeMap.get(nodeName);
+            if (!node.files[fileType]) {
+              node.files[fileType] = [];
             }
-            nodeMap.get(nodeName).fastfetchFiles.push(file);
+            node.files[fileType].push(file);
           }
         });
 
@@ -608,8 +601,7 @@
               displayName: configNode.displayName || configNode.name,
               description: configNode.description || '',
               status: discovered ? discovered.status : 'offline',
-              lmsensorsFiles: discovered ? discovered.lmsensorsFiles : [],
-              fastfetchFiles: discovered ? discovered.fastfetchFiles : [],
+              files: discovered ? discovered.files : {},
               lastSeen: discovered ? discovered.lastSeen : new Date()
             };
           });
@@ -669,8 +661,7 @@
           displayName: nodeName,
           description: 'Placeholder node',
           status: statuses[index % statuses.length],
-          lmsensorsFiles: [],
-          fastfetchFiles: [],
+          files: {},
           lastSeen: new Date()
         };
       });
@@ -788,27 +779,49 @@
         tabContent.className = "tab-content";
         tabContent.id = node.name;
 
-        // Add sensors section
-        var sensorSection = document.createElement("div");
-        sensorSection.className = "section-header";
-        sensorSection.innerHTML = '<i class="fas fa-thermometer-half"></i> Hardware Sensors';
-        tabContent.appendChild(sensorSection);
+        // Define section metadata for known file types
+        const sectionConfig = {
+          'lmsensors': { title: 'Hardware Sensors', icon: 'fa-thermometer-half' },
+          'ssd-temps': { title: 'SSD Temperatures', icon: 'fa-hard-drive' },
+          'fastfetch': { title: 'System Information', icon: 'fa-microchip' }
+        };
 
-        var lmsensorsContainer = document.createElement("div");
-        lmsensorsContainer.className = "lmsensors";
-        loadFiles(node.lmsensorsFiles, lmsensorsContainer);
-        tabContent.appendChild(lmsensorsContainer);
+        // Sort file types to display in a consistent order
+        const fileTypes = Object.keys(node.files || {}).sort((a, b) => {
+          const order = ['lmsensors', 'ssd-temps', 'fastfetch'];
+          const indexA = order.indexOf(a);
+          const indexB = order.indexOf(b);
+          if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+          if (indexA !== -1) return -1;
+          if (indexB !== -1) return 1;
+          return a.localeCompare(b);
+        });
 
-        // Add system info section
-        var sysInfoSection = document.createElement("div");
-        sysInfoSection.className = "section-header";
-        sysInfoSection.innerHTML = '<i class="fas fa-microchip"></i> System Information';
-        tabContent.appendChild(sysInfoSection);
+        // Create sections for each file type
+        fileTypes.forEach(fileType => {
+          const config = sectionConfig[fileType] || {
+            title: fileType.charAt(0).toUpperCase() + fileType.slice(1).replace(/-/g, ' '),
+            icon: 'fa-file-alt'
+          };
 
-        var fastfetchContainer = document.createElement("div");
-        fastfetchContainer.className = "fastfetch";
-        loadFiles(node.fastfetchFiles, fastfetchContainer);
-        tabContent.appendChild(fastfetchContainer);
+          var sectionHeader = document.createElement("div");
+          sectionHeader.className = "section-header";
+          sectionHeader.innerHTML = `<i class="fas ${config.icon}"></i> ${config.title}`;
+          tabContent.appendChild(sectionHeader);
+
+          var fileContainer = document.createElement("div");
+          fileContainer.className = fileType;
+          loadFiles(node.files[fileType], fileContainer);
+          tabContent.appendChild(fileContainer);
+        });
+
+        // If no files at all, show a message
+        if (fileTypes.length === 0) {
+          var noDataMsg = document.createElement("div");
+          noDataMsg.className = "info-message";
+          noDataMsg.textContent = "No data available for this node yet.";
+          tabContent.appendChild(noDataMsg);
+        }
 
         contentContainer.appendChild(tabContent);
       });
