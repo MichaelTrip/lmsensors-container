@@ -572,6 +572,8 @@
             const fileType = match[1];
             const nodeName = match[2];
 
+            console.log(`Parsed file: ${file} -> fileType: '${fileType}', nodeName: '${nodeName}'`);
+
             if (!nodeMap.has(nodeName)) {
               nodeMap.set(nodeName, {
                 name: nodeName,
@@ -586,8 +588,12 @@
               node.files[fileType] = [];
             }
             node.files[fileType].push(file);
+            console.log(`Added ${file} to node '${nodeName}' under fileType '${fileType}'`);
           }
         });
+
+        // Debug: Log the final node structure
+        console.log('Discovered nodes:', Array.from(nodeMap.entries()));
 
         // Convert Map to array and sort by node name
         let discoveredNodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
