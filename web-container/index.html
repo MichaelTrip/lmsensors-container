@@ -598,12 +598,14 @@
         // Convert Map to array and sort by node name
         let discoveredNodes = Array.from(nodeMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
+        console.log('Discovered nodes before merge:', discoveredNodes);
+
         // Merge with configured nodes
         if (configuredNodes.length > 0) {
           // Enhance discovered nodes with configuration data
           nodes = configuredNodes.map(configNode => {
             const discovered = discoveredNodes.find(d => d.name === configNode.name);
-            return {
+            const mergedNode = {
               name: configNode.name,
               displayName: configNode.displayName || configNode.name,
               description: configNode.description || '',
@@ -611,6 +613,8 @@
               files: discovered ? discovered.files : {},
               lastSeen: discovered ? discovered.lastSeen : new Date()
             };
+            console.log(`Merged node ${configNode.name}:`, mergedNode);
+            return mergedNode;
           });
 
           // Only add discovered nodes not in configuration if autoDiscovery is enabled
@@ -803,6 +807,8 @@
           if (indexB !== -1) return 1;
           return a.localeCompare(b);
         });
+
+        console.log(`Setting up node ${node.name}, fileTypes:`, fileTypes, 'node.files:', node.files);
 
         // Create sections for each file type
         fileTypes.forEach(fileType => {
