@@ -565,7 +565,8 @@
         // Process each file to identify nodes
         files.forEach(file => {
           // Extract node name and file type from filenames like "filetype-nodename.txt"
-          const match = file.match(/^(.+?)-(.+)\.txt$/);
+          // Use regex that matches everything up to the LAST dash as fileType
+          const match = file.match(/^(.+)-([^-]+)\.txt$/);
 
           if (match) {
             const fileType = match[1];
