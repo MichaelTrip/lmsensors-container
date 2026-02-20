@@ -280,3 +280,64 @@ jobs:
           Auto-generated from workflow run: ${{ github.run_id }}"
 
           git push origin main
+
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [determine-tag, build-sensor-container, build-web-container]
+    if: always() && (needs.build-sensor-container.result == 'success' || needs.build-web-container.result == 'success')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Generate Build Summary
+        run: |
+          echo "# 🚀 Container Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Images Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.build-sensor-container.result }}" == "success" ]; then
+            echo "### 🔧 Sensor Container" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ needs.build-sensor-container.outputs.image-tags }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Digest:** \`${{ needs.build-sensor-container.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.build-web-container.result }}" == "success" ]; then
+            echo "### 🌐 Web Container" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ needs.build-web-container.outputs.image-tags }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Digest:** \`${{ needs.build-web-container.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "## 🏷️ Tag Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Tag:** \`${{ needs.determine-tag.outputs.docker-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag:** \`${{ needs.determine-tag.outputs.git-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Is Main Branch:** \`${{ needs.determine-tag.outputs.is-main }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event Type:** \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "## 🚢 Pull Commands" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.build-sensor-container.result }}" == "success" ]; then
+              echo "**Sensor Container:**" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:${{ needs.determine-tag.outputs.docker-tag }}" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "${{ needs.build-web-container.result }}" == "success" ]; then
+              echo "**Web Container:**" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ghcr.io/${{ env.WEB_IMAGE_NAME }}:${{ needs.determine-tag.outputs.docker-tag }}" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
