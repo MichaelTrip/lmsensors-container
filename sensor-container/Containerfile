@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 RUN apt update \
-    && apt install -y lm-sensors aha jq wget curl tzdata \
+    && apt install -y lm-sensors aha jq wget curl tzdata smartmontools \
     && apt clean
 
 # Use the tr command to strip the quotes and handle the variable correctly

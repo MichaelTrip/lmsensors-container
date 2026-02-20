@@ -19,94 +19,56 @@ env:
   WEB_IMAGE_NAME: michaeltrip/lmsensors-web
 
 jobs:
-  # Determine semantic version based on conventional commits
-  semantic-version:
+  # Determine version tag based on git tags and branch
+  determine-tag:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      version-type: ${{ steps.version.outputs.version-type }}
+      docker-tag: ${{ steps.tag.outputs.docker-tag }}
+      git-tag: ${{ steps.tag.outputs.git-tag }}
+      is-main: ${{ steps.tag.outputs.is-main }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Calculate semantic version
-        id: version
+      - name: Determine tag
+        id: tag
         run: |
-          set -e  # Exit on any error
-          
-          # Get the latest tag, or start with v0.0.0 if no tags exist
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $LATEST_TAG"
+          set -e
 
-          # Remove 'v' prefix for version calculation
-          CURRENT_VERSION=${LATEST_TAG#v}
-          
-          # Parse version components with defaults
-          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            MAJOR=${BASH_REMATCH[1]}
-            MINOR=${BASH_REMATCH[2]} 
-            PATCH=${BASH_REMATCH[3]}
+          # Check if we're on main branch
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            IS_MAIN="true"
+
+            # Get the latest git tag, or default to v0.0.0
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "Latest git tag: $LATEST_TAG"
+
+            # For main branch, use the git tag as docker tag
+            DOCKER_TAG="$LATEST_TAG"
+            GIT_TAG="$LATEST_TAG"
           else
-            echo "Invalid version format: $CURRENT_VERSION, defaulting to 0.0.0"
-            MAJOR=0
-            MINOR=0
-            PATCH=0
-          fi
-          
-          echo "Current version: $MAJOR.$MINOR.$PATCH"
+            IS_MAIN="false"
 
-          # Get commits since last tag
-          if [ "$LATEST_TAG" = "v0.0.0" ]; then
-            COMMITS=$(git log --pretty=format:"%s" HEAD 2>/dev/null || echo "")
-          else
-            COMMITS=$(git log --pretty=format:"%s" ${LATEST_TAG}..HEAD 2>/dev/null || echo "")
+            # For feature branches, create a tag from branch name and commit
+            BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+            DOCKER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+            GIT_TAG=""  # Don't create git tags for feature branches
           fi
 
-          echo "Commits since last tag:"
-          echo "$COMMITS"
+          echo "Docker tag: $DOCKER_TAG"
+          echo "Is main branch: $IS_MAIN"
 
-          # Determine version bump based on conventional commits
-          VERSION_TYPE="patch"
-
-          if echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?!:|^[^:]+!:" 2>/dev/null; then
-            # Breaking change
-            VERSION_TYPE="major"
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-          elif echo "$COMMITS" | grep -qE "^(feat|feature)(\(.+\))?:" 2>/dev/null; then
-            # New feature
-            VERSION_TYPE="minor"
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          elif echo "$COMMITS" | grep -qE "^(fix|bugfix|perf|refactor)(\(.+\))?:" 2>/dev/null; then
-            # Bug fix, performance improvement, or refactoring
-            VERSION_TYPE="patch"
-            PATCH=$((PATCH + 1))
-          else
-            # Default to patch for any other changes
-            VERSION_TYPE="patch"
-            PATCH=$((PATCH + 1))
-          fi
-
-          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
-          echo "New version: $NEW_VERSION (${VERSION_TYPE} bump)"
-
-          # Validate the new version format
-          if [[ ! "$NEW_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: Invalid version format generated: $NEW_VERSION"
-            exit 1
-          fi
-
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "version-type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+          echo "docker-tag=$DOCKER_TAG" >> $GITHUB_OUTPUT
+          echo "git-tag=$GIT_TAG" >> $GITHUB_OUTPUT
+          echo "is-main=$IS_MAIN" >> $GITHUB_OUTPUT
 
   build-sensor-container:
     runs-on: ubuntu-latest
-    needs: semantic-version
+    needs: determine-tag
     permissions:
       contents: read
       packages: write
@@ -135,12 +97,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.SENSOR_IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ needs.semantic-version.outputs.version }},enable={{is_default_branch}}
-            type=ref,event=branch
+            type=raw,value=latest,enable=${{ needs.determine-tag.outputs.is-main == 'true' }}
+            type=raw,value=${{ needs.determine-tag.outputs.docker-tag }}
             type=ref,event=pr
-            type=sha,prefix={{branch}}-,suffix=-{{date 'YYYYMMDD-HHmmss'}}
-            type=raw,value={{branch}}-{{sha}},enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.title=LMSensors DaemonSet Container
             org.opencontainers.image.description=Hardware sensor monitoring for Kubernetes nodes
@@ -165,7 +124,7 @@ jobs:
 
   build-web-container:
     runs-on: ubuntu-latest
-    needs: semantic-version
+    needs: determine-tag
     permissions:
       contents: read
       packages: write
@@ -194,12 +153,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ needs.semantic-version.outputs.version }},enable={{is_default_branch}}
-            type=ref,event=branch
+            type=raw,value=latest,enable=${{ needs.determine-tag.outputs.is-main == 'true' }}
+            type=raw,value=${{ needs.determine-tag.outputs.docker-tag }}
             type=ref,event=pr
-            type=sha,prefix={{branch}}-,suffix=-{{date 'YYYYMMDD-HHmmss'}}
-            type=raw,value={{branch}}-{{sha}},enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.title=LMSensors Web Dashboard
             org.opencontainers.image.description=Modern web interface for hardware sensor monitoring
@@ -224,8 +180,8 @@ jobs:
 
   create-release:
     runs-on: ubuntu-latest
-    needs: [semantic-version, build-sensor-container, build-web-container]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [determine-tag, build-sensor-container, build-web-container]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.determine-tag.outputs.git-tag != ''
     permissions:
       contents: write
       packages: write
@@ -236,37 +192,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create and push semantic version tag
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          VERSION="${{ needs.semantic-version.outputs.version }}"
-          VERSION_TYPE="${{ needs.semantic-version.outputs.version-type }}"
-
-          echo "Creating tag: $VERSION"
-          git tag -a "$VERSION" -m "🚀 Release $VERSION
-
-          Version bump: $VERSION_TYPE
-
-          ## 📦 Container Images
-          - \`ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:latest\`
-          - \`ghcr.io/${{ env.WEB_IMAGE_NAME }}:latest\`
-
-          Built from commit: ${{ github.sha }}"
-
-          git push origin "$VERSION"
-
       - name: Generate release notes
         id: release-notes
         run: |
-          VERSION="${{ needs.semantic-version.outputs.version }}"
+          GIT_TAG="${{ needs.determine-tag.outputs.git-tag }}"
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
 
           echo "## 🚀 What's Changed" > release_notes.md
           echo "" >> release_notes.md
 
-          if [ -n "$PREVIOUS_TAG" ]; then
+          if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$GIT_TAG" ]; then
             echo "### 📝 Commits since $PREVIOUS_TAG:" >> release_notes.md
             git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..HEAD >> release_notes.md
           else
@@ -279,22 +214,22 @@ jobs:
           echo "" >> release_notes.md
           echo "| Component | Image | Size |" >> release_notes.md
           echo "|-----------|-------|------|" >> release_notes.md
-          echo "| **Sensor DaemonSet** | \`ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:latest\` | ![Size](https://img.shields.io/docker/image-size/ghcr.io/${{ env.SENSOR_IMAGE_NAME }}/latest) |" >> release_notes.md
-          echo "| **Web Dashboard** | \`ghcr.io/${{ env.WEB_IMAGE_NAME }}:latest\` | ![Size](https://img.shields.io/docker/image-size/ghcr.io/${{ env.WEB_IMAGE_NAME }}/latest) |" >> release_notes.md
+          echo "| **Sensor DaemonSet** | \`ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:$GIT_TAG\` | ![Size](https://img.shields.io/docker/image-size/ghcr.io/${{ env.SENSOR_IMAGE_NAME }}/$GIT_TAG) |" >> release_notes.md
+          echo "| **Web Dashboard** | \`ghcr.io/${{ env.WEB_IMAGE_NAME }}:$GIT_TAG\` | ![Size](https://img.shields.io/docker/image-size/ghcr.io/${{ env.WEB_IMAGE_NAME }}/$GIT_TAG) |" >> release_notes.md
           echo "" >> release_notes.md
           echo "## 🛠️ Quick Deploy" >> release_notes.md
           echo "" >> release_notes.md
           echo "\`\`\`bash" >> release_notes.md
-          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$VERSION/deployment-files/pvc.yaml" >> release_notes.md
-          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$VERSION/deployment-files/daemonset.yaml" >> release_notes.md
-          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$VERSION/deployment-files/webserver-modern.yaml" >> release_notes.md
+          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$GIT_TAG/deployment-files/pvc.yaml" >> release_notes.md
+          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$GIT_TAG/deployment-files/daemonset.yaml" >> release_notes.md
+          echo "kubectl apply -f https://raw.githubusercontent.com/MichaelTrip/lmsensors-container/$GIT_TAG/deployment-files/webserver-modern.yaml" >> release_notes.md
           echo "\`\`\`" >> release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.semantic-version.outputs.version }}
-          name: 🚀 Release ${{ needs.semantic-version.outputs.version }}
+          tag_name: ${{ needs.determine-tag.outputs.git-tag }}
+          name: 🚀 Release ${{ needs.determine-tag.outputs.git-tag }}
           body_path: release_notes.md
           draft: false
           prerelease: false
@@ -345,3 +280,64 @@ jobs:
           Auto-generated from workflow run: ${{ github.run_id }}"
 
           git push origin main
+
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [determine-tag, build-sensor-container, build-web-container]
+    if: always() && (needs.build-sensor-container.result == 'success' || needs.build-web-container.result == 'success')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Generate Build Summary
+        run: |
+          echo "# 🚀 Container Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Images Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.build-sensor-container.result }}" == "success" ]; then
+            echo "### 🔧 Sensor Container" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ needs.build-sensor-container.outputs.image-tags }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Digest:** \`${{ needs.build-sensor-container.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.build-web-container.result }}" == "success" ]; then
+            echo "### 🌐 Web Container" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ needs.build-web-container.outputs.image-tags }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Digest:** \`${{ needs.build-web-container.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "## 🏷️ Tag Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Tag:** \`${{ needs.determine-tag.outputs.docker-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag:** \`${{ needs.determine-tag.outputs.git-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Is Main Branch:** \`${{ needs.determine-tag.outputs.is-main }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event Type:** \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "## 🚢 Pull Commands" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.build-sensor-container.result }}" == "success" ]; then
+              echo "**Sensor Container:**" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ghcr.io/${{ env.SENSOR_IMAGE_NAME }}:${{ needs.determine-tag.outputs.docker-tag }}" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ "${{ needs.build-web-container.result }}" == "success" ]; then
+              echo "**Web Container:**" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ghcr.io/${{ env.WEB_IMAGE_NAME }}:${{ needs.determine-tag.outputs.docker-tag }}" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
