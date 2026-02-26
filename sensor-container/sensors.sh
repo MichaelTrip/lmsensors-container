@@ -41,10 +41,16 @@ collect_ssd_temps() {
 
         # Try to get SMART data (some devices might not support it)
         if smartctl -i "$dev_path" >/dev/null 2>&1; then
-            echo "=== $device ===" >> "$output_file"
-
             # Get device model
             local model=$(smartctl -i "$dev_path" 2>/dev/null | grep "Device Model\|Model Number\|Product:" | head -1 | sed 's/.*: *//')
+
+            # Skip virtual disks (e.g. VIRTUAL-DISK, VBOX, QEMU, VMware)
+            if echo "$model" | grep -qiE 'virtual|vbox|qemu|vmware'; then
+                continue
+            fi
+
+            echo "=== $device ===" >> "$output_file"
+
             if [ -n "$model" ]; then
                 echo "Model: $model" >> "$output_file"
             fi
