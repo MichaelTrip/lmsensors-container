@@ -144,7 +144,7 @@ jobs:
 
       - name: Build and push Sensor Docker image
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./sensor-container
           file: ./sensor-container/Containerfile
@@ -200,7 +200,7 @@ jobs:
 
       - name: Build and push Web Docker image
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./web-container
           file: ./web-container/Containerfile
