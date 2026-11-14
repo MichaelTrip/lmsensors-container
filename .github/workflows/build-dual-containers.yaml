@@ -129,7 +129,7 @@ jobs:
 
       - name: Extract metadata for Sensor Docker image
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.SENSOR_IMAGE_NAME }}
           tags: |
@@ -185,7 +185,7 @@ jobs:
 
       - name: Extract metadata for Web Docker image
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
           tags: |
